@@ -1,0 +1,332 @@
+/* 全局样式重置 */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* 应用主容器 */
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.app-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 左侧面板 */
+.left-panel {
+  width: 400px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 文件列表区域 */
+.file-list-section {
+  border-bottom: 1px solid #e0e0e0;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  padding: 12px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.file-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.file-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 0.2s;
+}
+
+.file-item:hover {
+  background-color: #f5f5f5;
+}
+
+.file-item.active {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+/* 消息列表区域 */
+.message-list-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+/* 右侧面板 */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+}
+
+/* 搜索区域 */
+.search-section {
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  border-color: #1976d2;
+}
+
+/* 标签栏 */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: #333;
+  background: #f0f0f0;
+}
+
+.tab.active {
+  color: #1976d2;
+  border-bottom-color: #1976d2;
+  font-weight: 500;
+}
+
+/* 消息详情区域 */
+.message-detail-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.message-detail {
+  min-height: 100%;
+}
+
+/* 工具栏 */
+.toolbar {
+  padding: 12px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* 按钮样式 */
+.btn-primary, .btn-secondary, .btn-large {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  outline: none;
+}
+
+.btn-primary {
+  background: #1976d2;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1565c0;
+}
+
+.btn-secondary {
+  background: white;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.btn-secondary:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.btn-large {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+/* 空状态 */
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-state p {
+  color: #999;
+  margin-bottom: 16px;
+}
+
+/* 占位符文本 */
+.placeholder {
+  color: #999;
+  text-align: center;
+  padding: 40px;
+}
+
+/* 模态框 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  margin-bottom: 16px;
+  font-size: 20px;
+  color: #333;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* 右侧面板 */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  min-width: 0; /* 防止flex项目撑破容器 */
+  overflow: hidden; /* 防止内容溢出 */
+}
+
+/* 搜索区域 */
+.search-section {
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0; /* 防止搜索区域被压缩 */
+}
+
+.search-stats {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #666;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.search-tip {
+  color: #999;
+  font-style: italic;
+}
+
+/* 标签栏 */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+  flex-shrink: 0; /* 防止标签栏被压缩 */
+}
+
+/* 消息详情区域 */
+.message-detail-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  min-height: 0; /* 允许flex子项缩小 */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* 工具栏 */
+.toolbar {
+  padding: 12px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0; /* 防止工具栏被压缩 */
+  background: white; /* 确保背景色 */
+}
