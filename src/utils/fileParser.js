@@ -37,10 +37,20 @@ export const detectFileFormat = (jsonData) => {
         ('human' in firstItem || 'assistant' in firstItem)) {
       return 'gemini_notebooklm';
     }
+    // Claude全部对话格式 - 数组包含对话摘要
+    if (firstItem && typeof firstItem === 'object' && 
+        'uuid' in firstItem && 'created_at' in firstItem && 
+        'model' in firstItem && 'name' in firstItem) {
+      return 'claude_conversations';
+    }
   }
   
-  // Claude格式 - 对象结构，包含chat_messages
+  // Claude完整导出格式 - 包含exportedAt和conversations
   if (typeof jsonData === 'object' && jsonData !== null) {
+    if (jsonData.exportedAt && jsonData.conversations && Array.isArray(jsonData.conversations)) {
+      return 'claude_full_export';
+    }
+    // Claude单个对话格式 - 对象结构，包含chat_messages
     if (jsonData.chat_messages && Array.isArray(jsonData.chat_messages)) {
       return 'claude';
     }
@@ -58,6 +68,10 @@ export const extractChatData = (jsonData, fileName = '') => {
       return extractClaudeData(jsonData);
     case 'gemini_notebooklm':
       return extractGeminiNotebookLMData(jsonData, fileName);
+    case 'claude_conversations':
+      return extractClaudeConversationsData(jsonData, fileName);
+    case 'claude_full_export':
+      return extractClaudeFullExportData(jsonData, fileName);
     default:
       throw new Error(`不支持的文件格式: ${format}`);
   }
@@ -452,4 +466,256 @@ export const detectBranches = (processedData) => {
       branch_points: []
     };
   }
+};
+
+// 解析Claude对话列表格式 (chat_conversations.json)
+const extractClaudeConversationsData = (jsonData, fileName) => {
+  // 这里数据是所有对话的摘要列表
+  const conversations = Array.isArray(jsonData) ? jsonData : [];
+  
+  // 创建一个摘要视图
+  const now = new Date();
+  const metaInfo = {
+    title: `Claude对话列表 (${conversations.length}个对话)`,
+    created_at: now.toLocaleString('zh-CN'),
+    updated_at: now.toLocaleString('zh-CN'),
+    project_uuid: "",
+    uuid: `claude_conversations_${Date.now()}`,
+    platform: 'claude_conversations'
+  };
+
+  const chatHistory = [];
+  let messageIndex = 0;
+
+  // 每个对话显示为一个消息块
+  conversations.forEach((conversation, idx) => {
+    const convTitle = conversation.name || "无标题对话";
+    const createdAt = parseTimestamp(conversation.created_at);
+    const updatedAt = parseTimestamp(conversation.updated_at);
+    const model = conversation.model || "未知模型";
+    const projectName = conversation.project?.name || "无项目";
+    const uuid = conversation.uuid || "";
+    const summary = conversation.summary || "无摘要";
+    const isStarred = conversation.is_starred ? "⭐ 已收藏" : "";
+
+    // 创建一个对话摘要消息
+    const conversationSummary = {
+      index: messageIndex++,
+      uuid: `conv_${idx}`,
+      parent_uuid: idx > 0 ? `conv_${idx - 1}` : "",
+      sender: "system",
+      sender_label: "Claude对话",
+      timestamp: createdAt,
+      content_items: [],
+      raw_text: `### ${convTitle} ${isStarred}\n\n**UUID**: ${uuid}\n**模型**: ${model}\n**项目**: ${projectName}\n**创建时间**: ${createdAt}\n**更新时间**: ${updatedAt}\n\n**摘要**: ${summary || '暂无摘要'}`,
+      display_text: `### ${convTitle} ${isStarred}\n\n**UUID**: ${uuid}\n**模型**: ${model}\n**项目**: ${projectName}\n**创建时间**: ${createdAt}\n**更新时间**: ${updatedAt}\n\n**摘要**: ${summary || '暂无摘要'}`,
+      thinking: "",
+      tools: [],
+      artifacts: [],
+      citations: [],
+      branch_id: null,
+      is_branch_point: false,
+      branch_level: 0,
+      // 额外信息供应用使用
+      conversation_data: conversation
+    };
+
+    chatHistory.push(conversationSummary);
+
+    // 如果有设置信息，创建一个设置详情消息
+    if (conversation.settings && Object.keys(conversation.settings).length > 0) {
+      const settingsText = Object.entries(conversation.settings)
+        .filter(([key, value]) => value !== null)
+        .map(([key, value]) => `**${key}**: ${value}`)
+        .join('\n');
+
+      if (settingsText) {
+        const settingsMessage = {
+          index: messageIndex++,
+          uuid: `conv_settings_${idx}`,
+          parent_uuid: `conv_${idx}`,
+          sender: "system",
+          sender_label: "设置信息",
+          timestamp: createdAt,
+          content_items: [],
+          raw_text: `#### 对话设置\n\n${settingsText}`,
+          display_text: `#### 对话设置\n\n${settingsText}`,
+          thinking: "",
+          tools: [],
+          artifacts: [],
+          citations: [],
+          branch_id: null,
+          is_branch_point: false,
+          branch_level: 0
+        };
+        chatHistory.push(settingsMessage);
+      }
+    }
+  });
+
+  return {
+    meta_info: metaInfo,
+    chat_history: chatHistory,
+    raw_data: jsonData,
+    format: 'claude_conversations',
+    platform: 'claude_conversations'
+  };
+};
+
+// 解析Claude完整导出格式 (claude_all_conversations_*.json)
+const extractClaudeFullExportData = (jsonData, fileName) => {
+  const exportedAt = parseTimestamp(jsonData.exportedAt);
+  const conversations = jsonData.conversations || [];
+  const totalConversations = jsonData.totalConversations || conversations.length;
+  
+  // 创建元信息
+  const metaInfo = {
+    title: `Claude完整导出 (${totalConversations}个对话)`,
+    created_at: exportedAt,
+    updated_at: exportedAt,
+    project_uuid: "",
+    uuid: `claude_full_export_${Date.now()}`,
+    platform: 'claude_full_export',
+    exportedAt: exportedAt,
+    totalConversations: totalConversations
+  };
+
+  // 处理所有对话
+  const allMessages = [];
+  const conversationGroups = {};
+  const projectGroups = {};
+  let globalMessageIndex = 0;
+
+  conversations.forEach((conversation, convIdx) => {
+    const convUuid = conversation.uuid;
+    const convName = conversation.name || `对话 ${convIdx + 1}`;
+    const projectUuid = conversation.project_uuid || 'no_project';
+    const projectName = conversation.project?.name || '无项目';
+    
+    // 初始化对话组
+    if (!conversationGroups[convUuid]) {
+      conversationGroups[convUuid] = {
+        uuid: convUuid,
+        name: convName,
+        model: conversation.model,
+        created_at: parseTimestamp(conversation.created_at),
+        updated_at: parseTimestamp(conversation.updated_at),
+        is_starred: conversation.is_starred,
+        project: conversation.project,
+        messages: [],
+        messageCount: 0
+      };
+    }
+    
+    // 初始化项目组
+    if (!projectGroups[projectUuid]) {
+      projectGroups[projectUuid] = {
+        uuid: projectUuid,
+        name: projectName,
+        conversations: [],
+        messages: [],
+        messageCount: 0
+      };
+    }
+    
+    // 添加对话分隔标记
+    const conversationHeader = {
+      index: globalMessageIndex++,
+      uuid: `conv_header_${convIdx}`,
+      parent_uuid: globalMessageIndex > 1 ? allMessages[allMessages.length - 1].uuid : "",
+      sender: "system",
+      sender_label: "对话开始",
+      timestamp: parseTimestamp(conversation.created_at),
+      content_items: [],
+      raw_text: `### ${convName} ${conversation.is_starred ? '⭐' : ''}\n\n**模型**: ${conversation.model || '未知'}\n**项目**: ${projectName}\n**创建时间**: ${parseTimestamp(conversation.created_at)}`,
+      display_text: `### ${convName} ${conversation.is_starred ? '⭐' : ''}\n\n**模型**: ${conversation.model || '未知'}\n**项目**: ${projectName}\n**创建时间**: ${parseTimestamp(conversation.created_at)}`,
+      thinking: "",
+      tools: [],
+      artifacts: [],
+      citations: [],
+      branch_id: null,
+      is_branch_point: false,
+      branch_level: 0,
+      conversation_uuid: convUuid,
+      project_uuid: projectUuid,
+      is_conversation_header: true,
+      // 添加对话信息
+      conversation_name: convName,
+      project_name: projectName,
+      model: conversation.model,
+      is_starred: conversation.is_starred,
+      created_at: parseTimestamp(conversation.created_at),
+      messageCount: conversation.chat_messages ? conversation.chat_messages.length : 0
+    };
+    
+    allMessages.push(conversationHeader);
+    conversationGroups[convUuid].messages.push(conversationHeader);
+    projectGroups[projectUuid].messages.push(conversationHeader);
+    
+    // 处理该对话的所有消息
+    if (conversation.chat_messages && Array.isArray(conversation.chat_messages)) {
+      conversation.chat_messages.forEach((msg, msgIdx) => {
+        const sender = msg.sender || "unknown";
+        const senderLabel = sender === "human" ? "人类" : "Claude";
+        const timestamp = parseTimestamp(msg.created_at);
+
+        const messageData = {
+          index: globalMessageIndex++,
+          uuid: msg.uuid || `msg_${convIdx}_${msgIdx}`,
+          parent_uuid: msg.parent_message_uuid || (globalMessageIndex > 1 ? allMessages[allMessages.length - 1].uuid : ""),
+          sender,
+          sender_label: senderLabel,
+          timestamp,
+          content_items: [],
+          raw_text: "",
+          display_text: "",
+          thinking: "",
+          tools: [],
+          artifacts: [],
+          citations: [],
+          branch_id: null,
+          is_branch_point: false,
+          branch_level: 0,
+          conversation_uuid: convUuid,
+          project_uuid: projectUuid,
+          conversation_name: convName,
+          project_name: projectName
+        };
+
+        // 处理消息内容
+        if (msg.content && Array.isArray(msg.content)) {
+          processContentArray(msg.content, messageData);
+        } else if (msg.text) {
+          messageData.raw_text = msg.text;
+          messageData.display_text = msg.text;
+        }
+
+        allMessages.push(messageData);
+        conversationGroups[convUuid].messages.push(messageData);
+        conversationGroups[convUuid].messageCount++;
+        projectGroups[projectUuid].messages.push(messageData);
+        projectGroups[projectUuid].messageCount++;
+      });
+    }
+    
+    // 将对话添加到项目组
+    if (!projectGroups[projectUuid].conversations.find(c => c.uuid === convUuid)) {
+      projectGroups[projectUuid].conversations.push(conversationGroups[convUuid]);
+    }
+  });
+
+  return {
+    meta_info: metaInfo,
+    chat_history: allMessages,
+    raw_data: jsonData,
+    format: 'claude_full_export',
+    platform: 'claude_full_export',
+    // 额外的视图数据
+    views: {
+      conversations: conversationGroups,
+      projects: projectGroups,
+      conversationList: Object.values(conversationGroups),
+      projectList: Object.values(projectGroups)
+    }
+  };
 };

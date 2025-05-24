@@ -15,7 +15,9 @@
     "remark-gfm": "^3.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "cross-env HOST=0.0.0.0 react-scripts start",
+    "start:local": "react-scripts start",
+    "start:network": "cross-env HOST=0.0.0.0 PORT=3000 react-scripts start",
     "build": "react-scripts build",
     "electron": "electron-forge start",
     "electron-dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",

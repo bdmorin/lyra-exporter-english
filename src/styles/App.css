@@ -62,10 +62,10 @@
   cursor: pointer;
   font-size: 13px;
   color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .file-item:hover {
@@ -329,4 +329,456 @@
   justify-content: flex-end;
   flex-shrink: 0; /* 防止工具栏被压缩 */
   background: white; /* 确保背景色 */
+}
+
+/* =================== 响应式设计 =================== */
+/* 手机端样式 (iPhone 15 Pro: 393×852px) */
+@media (max-width: 768px) {
+  /* 主容器调整 */
+  .app-container {
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* 左侧面板变为全屏 */
+  .left-panel {
+    width: 100%;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    transition: transform 0.3s ease;
+  }
+
+  .left-panel.hidden {
+    transform: translateX(-100%);
+  }
+
+  /* 右侧面板也是全屏 */
+  .right-panel {
+    width: 100%;
+    height: 100vh;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 20px); /* 适配iPhone底部安全区域 */
+  }
+
+  /* 文件列表区域扩大 */
+  .file-list-section {
+    max-height: 40vh;
+  }
+
+  /* 搜索区域调整 */
+  .search-section {
+    padding: 8px 12px;
+    position: relative;
+    z-index: 5;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  /* 当搜索框可见时，按钮和搜索框在同一行 */
+  .search-section.with-nav-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+  }
+
+  .search-section.with-nav-button .search-input {
+    flex: 1;
+  }
+
+  /* 标签栏滚动 */
+  .tab-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding: 0 8px;
+  }
+
+  .tab {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    white-space: nowrap;
+  }
+
+  /* 工具栏调整 */
+  .toolbar {
+    padding: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 20px));
+    flex-wrap: wrap;
+    justify-content: center;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+    z-index: 5;
+  }
+
+  /* 模态框调整 */
+  .modal-content {
+    padding: 16px;
+    margin: 16px;
+    max-height: calc(100vh - 32px);
+  }
+
+  /* 添加移动端导航按钮 */
+  .mobile-nav-toggle {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 20;
+    background: #1976d2;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+  }
+
+  /* 当搜索框可见时，按钮和搜索框在同一行 */
+  .search-section.with-nav-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-left: 56px; /* 给导航按钮留空间 */
+  }
+
+  .mobile-nav-toggle.in-search-bar {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  /* 滚动后变成小圆形按钮 */
+  .mobile-nav-toggle.scrolled {
+    padding: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 20px;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* 移动端关闭按钮 */
+  .mobile-close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 21;
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  /* 消息详情区域调整 */
+  .message-detail-section {
+    padding: 12px;
+    overflow-y: visible; /* 不要独立滚动 */
+    flex: none; /* 不要占满剩余空间 */
+    min-height: auto;
+  }
+
+  /* 按钮大小调整 */
+  .btn-primary, .btn-secondary {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .btn-large {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+
+  /* 字体大小调整 */
+  .panel-header h3 {
+    font-size: 16px;
+  }
+
+  .file-item {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  /* 空状态调整 */
+  .empty-state {
+    padding: 20px;
+  }
+
+  /* 搜索结果统计文本 */
+  .search-stats {
+    font-size: 11px;
+  }
+}
+
+/* 平板样式 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .left-panel {
+    width: 350px;
+  }
+
+  .message-detail-section {
+    padding: 14px;
+  }
+}
+
+/* 小屏幕手机 */
+@media (max-width: 375px) {
+  .panel-header {
+    padding: 10px 12px;
+  }
+
+  .tab {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .message-detail-section {
+    padding: 10px;
+  }
+
+  .modal-content {
+    padding: 12px;
+  }
+}
+
+/* 隐藏移动端导航按钮（桌面端） */
+@media (min-width: 769px) {
+  .mobile-nav-toggle {
+    display: none !important;
+  }
+}
+
+/* =================== 视图切换样式 =================== */
+/* 视图切换按钮组 */
+.view-switcher {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.view-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.view-btn:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.view-btn.active {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
+}
+
+/* 移动端视图切换样式 */
+@media (max-width: 768px) {
+  .view-switcher {
+    padding: 8px;
+    flex-wrap: wrap;
+  }
+
+  .view-btn {
+    font-size: 12px;
+    padding: 6px 8px;
+    min-width: 0;
+  }
+  
+  /* 移动端视图选择器 */
+  .view-selector-panel {
+    max-height: 40vh;
+  }
+  
+  .view-selector-item {
+    padding: 8px 10px;
+  }
+  
+  .selector-item-title {
+    font-size: 13px;
+  }
+  
+  .selector-item-meta {
+    font-size: 11px;
+  }
+}
+
+/* 文件信息样式 */
+.file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-type {
+  font-size: 11px;
+  color: #999;
+  font-style: italic;
+}
+
+/* 文件删除按钮 */
+.file-remove-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: #999;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.file-remove-btn:hover {
+  background: #fee;
+  color: #d00;
+}
+
+/* =================== 视图选择器样式 =================== */
+.view-selector-panel {
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.view-selector-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.view-selector-item {
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-selector-item:hover {
+  background: #f5f5f5;
+  border-color: #ddd;
+}
+
+.view-selector-item.active {
+  background: #e3f2fd;
+  border-color: #1976d2;
+}
+
+.selector-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.selector-item-meta {
+  font-size: 12px;
+  color: #666;
+}
+
+.btn-small {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+/* =================== 排序按钮样式 =================== */
+.sort-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.sort-btn {
+  width: 24px;
+  height: 20px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 3px;
+  padding: 0;
+}
+
+.sort-btn:hover:not(:disabled) {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
+}
+
+.sort-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sort-btn.up {
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.sort-btn.down {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }

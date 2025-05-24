@@ -4,20 +4,24 @@ import { SEARCH_DEBOUNCE_MS } from '../utils/constants';
 export const useSearch = (messages = []) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [filteredMessages, setFilteredMessages] = useState(messages);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 搜索函数
+  // 搜索函数 - 筛选模式
   const performSearch = useCallback((searchText, messageList) => {
     if (!searchText.trim()) {
       setResults([]);
+      setFilteredMessages(messageList);
       return;
     }
 
     const lowerQuery = searchText.toLowerCase();
     const searchResults = [];
+    const filtered = [];
 
     messageList.forEach((message, index) => {
       const matches = [];
+      let shouldInclude = false;
 
       // 搜索主要内容
       if (message.display_text?.toLowerCase().includes(lowerQuery)) {
@@ -26,6 +30,7 @@ export const useSearch = (messages = []) => {
           text: message.display_text,
           excerpt: getExcerpt(message.display_text, lowerQuery)
         });
+        shouldInclude = true;
       }
 
       // 搜索思考过程
@@ -35,6 +40,7 @@ export const useSearch = (messages = []) => {
           text: message.thinking,
           excerpt: getExcerpt(message.thinking, lowerQuery)
         });
+        shouldInclude = true;
       }
 
       // 搜索artifacts
@@ -48,11 +54,26 @@ export const useSearch = (messages = []) => {
               text: artifact.content || artifact.title,
               excerpt: getExcerpt(artifact.content || artifact.title, lowerQuery)
             });
+            shouldInclude = true;
           }
         });
       }
 
-      if (matches.length > 0) {
+      // 搜索对话标题和项目名（对于对话开始标记）
+      if (message.is_conversation_header) {
+        if (message.conversation_name?.toLowerCase().includes(lowerQuery) ||
+            message.project_name?.toLowerCase().includes(lowerQuery) ||
+            message.display_text?.toLowerCase().includes(lowerQuery)) {
+          shouldInclude = true;
+          matches.push({
+            type: 'header',
+            text: message.display_text
+          });
+        }
+      }
+
+      if (shouldInclude) {
+        filtered.push(message);
         searchResults.push({
           messageIndex: index,
           message,
@@ -61,6 +82,7 @@ export const useSearch = (messages = []) => {
       }
     });
 
+    setFilteredMessages(filtered);
     setResults(searchResults);
   }, []);
 
@@ -92,6 +114,13 @@ export const useSearch = (messages = []) => {
     return () => clearTimeout(timer);
   }, [query, messages, performSearch]);
 
+  // 当messages变化且没有搜索时，更新filteredMessages
+  useEffect(() => {
+    if (!query.trim()) {
+      setFilteredMessages(messages);
+    }
+  }, [messages, query]);
+
   // 搜索操作
   const search = useCallback((searchText) => {
     setQuery(searchText);
@@ -101,7 +130,8 @@ export const useSearch = (messages = []) => {
   const clearSearch = useCallback(() => {
     setQuery('');
     setResults([]);
-  }, []);
+    setFilteredMessages(messages);
+  }, [messages]);
 
   // 高亮文本
   const highlightText = useCallback((text, searchQuery) => {
@@ -132,6 +162,7 @@ export const useSearch = (messages = []) => {
     // 状态
     query,
     results,
+    filteredMessages,
     isSearching,
     stats: resultStats,
     

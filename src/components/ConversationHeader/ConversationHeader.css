@@ -1,0 +1,142 @@
+/* Componenrs/ConversationHeader/ConversationHeader.css */
+
+.conversation-header {
+  position: relative;
+  margin: 16px 0;
+}
+
+.conversation-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(to right, #f0f7ff, #f8fbff);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #e1e8f0;
+}
+
+.conversation-header-main:hover {
+  background: linear-gradient(to right, #e6f2ff, #f0f7ff);
+  border-color: #cfd9e6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.collapse-toggle {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.conversation-header-main:hover .collapse-toggle {
+  color: #1976d2;
+  transform: scale(1.1);
+}
+
+.conversation-number {
+  width: 36px;
+  height: 36px;
+  background: #1976d2;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.conversation-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  font-size: 12px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.conversation-divider {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  margin: 0 16px;
+}
+
+.divider-line {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #ddd 20%, #ddd 80%, transparent);
+  position: relative;
+}
+
+.divider-line::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: #1976d2;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #f8fbff;
+}
+
+/* 折叠状态 */
+.conversation-header.collapsed .conversation-header-main {
+  background: #f8f9fa;
+  border-color: #e8e9ea;
+}
+
+/* 移动端样式 */
+@media (max-width: 768px) {
+  .conversation-header-main {
+    padding: 10px 12px;
+  }
+
+  .conversation-title {
+    font-size: 14px;
+  }
+
+  .meta-item {
+    font-size: 11px;
+  }
+
+  .conversation-meta {
+    gap: 8px;
+  }
+}
