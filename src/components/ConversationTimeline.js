@@ -10,7 +10,10 @@ const ConversationTimeline = ({
   onMessageSelect,
   markActions,
   format, // 'claude', 'claude_full_export', 'gemini_notebooklm', etc.
-  conversation = null // 可选的对话信息（用于claude_full_export格式）
+  conversation = null, // 可选的对话信息（用于claude_full_export格式）
+  sortActions = null, // 排序操作
+  hasCustomSort = false, // 是否有自定义排序
+  enableSorting = false // 是否启用排序功能
 }) => {
   
   // 根据格式获取对话信息
@@ -218,7 +221,37 @@ const ConversationTimeline = ({
                   </div>
                 </div>
                 
-                <button className="btn-detail">查看详情</button>
+                <div className="timeline-actions">
+                  {/* 排序按钮 */}
+                  {enableSorting && hasCustomSort && sortActions && (
+                    <div className="sort-controls">
+                      <button 
+                        className="sort-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          sortActions.moveMessage(index, 'up');
+                        }}
+                        disabled={index === 0}
+                        title="上移"
+                      >
+                        ↑
+                      </button>
+                      <button 
+                        className="sort-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          sortActions.moveMessage(index, 'down');
+                        }}
+                        disabled={index === messages.length - 1}
+                        title="下移"
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  )}
+                  
+                  <button className="btn-detail">查看详情</button>
+                </div>
               </div>
               
               <div className="timeline-body">

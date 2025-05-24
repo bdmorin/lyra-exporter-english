@@ -8,6 +8,8 @@ export const useFileManager = () => {
   const [processedData, setProcessedData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showTypeConflictModal, setShowTypeConflictModal] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState([]);
 
   // 处理当前文件
   const processCurrentFile = useCallback(async () => {
@@ -44,8 +46,36 @@ export const useFileManager = () => {
     processCurrentFile();
   }, [processCurrentFile]);
 
+  // 检查文件类型是否兼容
+  const checkFileTypeCompatibility = useCallback(async (newFiles) => {
+    if (files.length === 0) return true;
+
+    try {
+      // 检查第一个新文件的类型
+      const firstNewFile = newFiles[0];
+      const text = await firstNewFile.text();
+      const jsonData = JSON.parse(text);
+      const newFileData = extractChatData(jsonData, firstNewFile.name);
+      
+      // 检查当前已加载文件的类型
+      const currentFile = files[currentFileIndex];
+      const currentText = await currentFile.text();
+      const currentJsonData = JSON.parse(currentText);
+      const currentFileData = extractChatData(currentJsonData, currentFile.name);
+      
+      // 如果有claude_full_export格式，不能与其他格式混合
+      const isNewFullExport = newFileData.format === 'claude_full_export';
+      const isCurrentFullExport = currentFileData.format === 'claude_full_export';
+      
+      return !(isNewFullExport !== isCurrentFullExport);
+    } catch (error) {
+      console.warn('文件类型检查失败:', error);
+      return true; // 如果检查失败，允许加载
+    }
+  }, [files, currentFileIndex]);
+
   // 加载文件
-  const loadFiles = useCallback((fileList) => {
+  const loadFiles = useCallback(async (fileList) => {
     const jsonFiles = fileList.filter(file => {
       // 检查文件扩展名和类型
       return file.name.endsWith('.json') || file.type === 'application/json';
@@ -69,9 +99,33 @@ export const useFileManager = () => {
       return;
     }
 
+    // 检查文件类型兼容性
+    const isCompatible = await checkFileTypeCompatibility(newFiles);
+    
+    if (!isCompatible) {
+      setPendingFiles(newFiles);
+      setShowTypeConflictModal(true);
+      return;
+    }
+
     setFiles(prevFiles => [...prevFiles, ...newFiles]);
     setError(null);
-  }, [files]);
+  }, [files, checkFileTypeCompatibility]);
+
+  // 确认替换文件
+  const confirmReplaceFiles = useCallback(() => {
+    setFiles(pendingFiles);
+    setCurrentFileIndex(0);
+    setPendingFiles([]);
+    setShowTypeConflictModal(false);
+    setError(null);
+  }, [pendingFiles]);
+
+  // 取消替换文件
+  const cancelReplaceFiles = useCallback(() => {
+    setPendingFiles([]);
+    setShowTypeConflictModal(false);
+  }, []);
 
   // 移除文件
   const removeFile = useCallback((index) => {
@@ -96,6 +150,28 @@ export const useFileManager = () => {
     }
   }, [files.length]);
 
+  // 重排序文件
+  const reorderFiles = useCallback((fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    
+    setFiles(prevFiles => {
+      const newFiles = [...prevFiles];
+      const [movedFile] = newFiles.splice(fromIndex, 1);
+      newFiles.splice(toIndex, 0, movedFile);
+      
+      // 更新当前文件索引
+      if (fromIndex === currentFileIndex) {
+        setCurrentFileIndex(toIndex);
+      } else if (fromIndex < currentFileIndex && toIndex >= currentFileIndex) {
+        setCurrentFileIndex(currentFileIndex - 1);
+      } else if (fromIndex > currentFileIndex && toIndex <= currentFileIndex) {
+        setCurrentFileIndex(currentFileIndex + 1);
+      }
+      
+      return newFiles;
+    });
+  }, [currentFileIndex]);
+
   // 获取当前文件信息
   const currentFile = files[currentFileIndex] || null;
 
@@ -107,12 +183,17 @@ export const useFileManager = () => {
     processedData,
     isLoading,
     error,
+    showTypeConflictModal,
+    pendingFiles,
     
     // 操作
     actions: {
       loadFiles,
       removeFile,
-      switchFile
+      switchFile,
+      reorderFiles,
+      confirmReplaceFiles,
+      cancelReplaceFiles
     }
   };
 };
