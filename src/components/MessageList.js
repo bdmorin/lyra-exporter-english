@@ -1,7 +1,5 @@
-// components/MessageList.js
-import React, { useState, useEffect } from 'react';
-import '../styles/message-detail.css';
-import ConversationHeader from './ConversationHeader';
+// components/MessageList.js - 简化版本
+import React from 'react';
 
 const MessageList = ({ 
   messages = [], 
@@ -13,22 +11,6 @@ const MessageList = ({
   onMoveMessage = null,
   hasCustomSort = false
 }) => {
-  // 对话折叠状态
-  const [collapsedConversations, setCollapsedConversations] = useState(new Set());
-  
-  // 切换对话折叠状态
-  const toggleConversationCollapse = (conversationUuid) => {
-    setCollapsedConversations(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(conversationUuid)) {
-        newSet.delete(conversationUuid);
-      } else {
-        newSet.add(conversationUuid);
-      }
-      return newSet;
-    });
-  };
-  
   // 检查消息是否被标记
   const isMarked = (messageIndex, markType) => {
     return marks[markType]?.has(messageIndex) || false;
@@ -53,7 +35,6 @@ const MessageList = ({
   // 格式化时间戳
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
-    // 如果已经是格式化的时间，直接返回
     if (typeof timestamp === 'string' && timestamp.includes('/')) {
       return timestamp;
     }
@@ -123,44 +104,6 @@ const MessageList = ({
         const isSelected = selectedMessageIndex === message.index;
         const hasMatch = hasSearchMatch(message.index);
         
-        // 处理对话开始标记
-        if (message.is_conversation_header) {
-          const isCollapsed = collapsedConversations.has(message.conversation_uuid);
-          
-          // 计算对话索引
-          let conversationIndex = 0;
-          for (let i = 0; i < index; i++) {
-            if (messages[i].is_conversation_header) {
-              conversationIndex++;
-            }
-          }
-          
-          return (
-            <ConversationHeader
-              key={message.index}
-              message={message}
-              isCollapsed={isCollapsed}
-              onToggleCollapse={() => toggleConversationCollapse(message.conversation_uuid)}
-              conversationIndex={conversationIndex}
-            />
-          );
-        }
-        
-        // 检查是否在折叠的对话中
-        const conversationHeader = messages.slice(0, index).reverse()
-          .find(m => m.is_conversation_header);
-        if (conversationHeader && 
-            collapsedConversations.has(conversationHeader.conversation_uuid)) {
-          return null; // 不显示折叠对话中的消息
-        }
-        
-        // 计算当前对话内的序号
-        let conversationMessageIndex = 0;
-        for (let i = index - 1; i >= 0; i--) {
-          if (messages[i].is_conversation_header) break;
-          conversationMessageIndex++;
-        }
-        
         return (
           <div
             key={message.index}
@@ -169,7 +112,7 @@ const MessageList = ({
           >
             {/* 消息头部 */}
             <div className="message-item-header">
-              <div className="message-number">#{conversationMessageIndex + 1}</div>
+              <div className="message-number">#{index + 1}</div>
               <div className="sender-info">
                 <span className="sender-icon">{getSenderIcon(message.sender)}</span>
                 <span className={`sender-name ${message.sender}`}>

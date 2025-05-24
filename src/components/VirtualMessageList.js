@@ -1,12 +1,10 @@
-// components/VirtualMessageList.js
+// components/VirtualMessageList.js - 简化版本
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import '../styles/message-detail.css';
-import ConversationHeader from './ConversationHeader';
 
 // 单个消息项组件 - 使用React.memo优化
 const MessageItem = React.memo(({ 
   message, 
-  conversationMessageIndex,
+  messageIndex,
   isSelected, 
   hasMatch, 
   onSelect,
@@ -24,7 +22,7 @@ const MessageItem = React.memo(({
     >
       {/* 消息头部 */}
       <div className="message-item-header">
-        <div className="message-number">#{conversationMessageIndex + 1}</div>
+        <div className="message-number">#{messageIndex + 1}</div>
         <div className="sender-info">
           <span className="sender-icon">{getSenderIcon(message.sender)}</span>
           <span className={`sender-name ${message.sender}`}>
@@ -72,7 +70,7 @@ const MessageItem = React.memo(({
   // 自定义比较函数，只在必要时重新渲染
   return prevProps.isSelected === nextProps.isSelected &&
          prevProps.hasMatch === nextProps.hasMatch &&
-         prevProps.conversationMessageIndex === nextProps.conversationMessageIndex &&
+         prevProps.messageIndex === nextProps.messageIndex &&
          JSON.stringify(prevProps.marks) === JSON.stringify(nextProps.marks);
 });
 
@@ -84,9 +82,6 @@ const VirtualMessageList = ({
   searchResults = [],
   searchQuery = ''
 }) => {
-  // 对话折叠状态
-  const [collapsedConversations, setCollapsedConversations] = useState(new Set());
-  
   // 虚拟滚动相关状态
   const containerRef = useRef(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -94,19 +89,6 @@ const VirtualMessageList = ({
   
   const ITEM_HEIGHT = 120; // 预估的消息项高度
   const BUFFER_SIZE = 5; // 缓冲区大小
-  
-  // 切换对话折叠状态
-  const toggleConversationCollapse = useCallback((conversationUuid) => {
-    setCollapsedConversations(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(conversationUuid)) {
-        newSet.delete(conversationUuid);
-      } else {
-        newSet.add(conversationUuid);
-      }
-      return newSet;
-    });
-  }, []);
   
   // 计算可见消息
   const visibleData = useMemo(() => {
@@ -244,49 +226,11 @@ const VirtualMessageList = ({
             const isSelected = selectedMessageIndex === message.index;
             const hasMatch = hasSearchMatch(message.index);
             
-            // 处理对话开始标记
-            if (message.is_conversation_header) {
-              const isCollapsed = collapsedConversations.has(message.conversation_uuid);
-              
-              // 计算对话索引
-              let conversationIndex = 0;
-              for (let i = 0; i < actualIndex; i++) {
-                if (messages[i] && messages[i].is_conversation_header) {
-                  conversationIndex++;
-                }
-              }
-              
-              return (
-                <ConversationHeader
-                  key={message.index}
-                  message={message}
-                  isCollapsed={isCollapsed}
-                  onToggleCollapse={() => toggleConversationCollapse(message.conversation_uuid)}
-                  conversationIndex={conversationIndex}
-                />
-              );
-            }
-            
-            // 检查是否在折叠的对话中
-            const conversationHeader = messages.slice(0, actualIndex).reverse()
-              .find(m => m.is_conversation_header);
-            if (conversationHeader && 
-                collapsedConversations.has(conversationHeader.conversation_uuid)) {
-              return null;
-            }
-            
-            // 计算当前对话内的序号
-            let conversationMessageIndex = 0;
-            for (let i = actualIndex - 1; i >= 0; i--) {
-              if (messages[i].is_conversation_header) break;
-              conversationMessageIndex++;
-            }
-            
             return (
               <MessageItem
                 key={message.index}
                 message={message}
-                conversationMessageIndex={conversationMessageIndex}
+                messageIndex={actualIndex}
                 isSelected={isSelected}
                 hasMatch={hasMatch}
                 onSelect={onMessageSelect}

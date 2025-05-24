@@ -1,6 +1,5 @@
 // components/MessageDetail.js
 import React, { useState, useRef, useEffect } from 'react';
-import '../styles/message-detail.css';
 
 const MessageDetail = ({ 
   processedData, 

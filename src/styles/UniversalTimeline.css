@@ -1,0 +1,415 @@
+/* UniversalTimeline.css */
+/* 通用时间线样式，使用现有主题系统 */
+
+/* 基础时间线容器 */
+.universal-timeline-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  position: relative;
+}
+
+/* 对话信息卡片 */
+.conversation-info-card {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+}
+
+.conversation-info-card h2 {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.platform-badge {
+  background: var(--accent-primary);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* 平台特定的badge颜色 */
+.platform-gemini .platform-badge {
+  background: var(--accent-info);
+}
+
+.platform-notebooklm .platform-badge {
+  background: var(--accent-secondary);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 0.9rem;
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+.export-info {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* 时间线主体 */
+.timeline {
+  position: relative;
+  margin-top: 40px;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 24px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--border-primary), var(--accent-primary));
+  z-index: 0;
+}
+
+/* 时间线消息 */
+.timeline-message {
+  position: relative;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: flex-start;
+  z-index: 1;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.timeline-message:nth-child(odd) {
+  animation-delay: 0.1s;
+}
+
+.timeline-message:nth-child(even) {
+  animation-delay: 0.2s;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 3px solid var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+  margin-right: 24px;
+  margin-top: 20px;
+  flex-shrink: 0;
+  z-index: 2;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.timeline-dot.human {
+  background: var(--accent-secondary);
+}
+
+.timeline-dot.assistant {
+  background: var(--accent-primary);
+}
+
+/* 平台特定的点颜色 */
+.platform-gemini .timeline-dot.assistant {
+  background: var(--accent-info);
+}
+
+.platform-notebooklm .timeline-dot.assistant {
+  background: var(--accent-secondary);
+}
+
+/* 时间线内容 */
+.timeline-content {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-sm);
+}
+
+.timeline-content:hover {
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  background: var(--bg-tertiary);
+}
+
+/* 时间线头部 */
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.timeline-sender {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.timeline-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  border: 2px solid var(--border-primary);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.timeline-avatar.human {
+  background: var(--accent-secondary);
+  color: white;
+  border-color: var(--accent-secondary);
+}
+
+.timeline-avatar.assistant {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+/* 平台特定的头像颜色 */
+.platform-gemini .timeline-avatar.assistant {
+  background: var(--accent-info);
+  border-color: var(--accent-info);
+}
+
+.platform-notebooklm .timeline-avatar.assistant {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+}
+
+.sender-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sender-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.sender-time {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.btn-detail {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-detail:hover {
+  background: var(--accent-info);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+/* 平台特定的按钮颜色 */
+.platform-gemini .btn-detail {
+  background: var(--accent-info);
+}
+
+.platform-gemini .btn-detail:hover {
+  background: var(--accent-primary);
+}
+
+.platform-notebooklm .btn-detail {
+  background: var(--accent-secondary);
+}
+
+.platform-notebooklm .btn-detail:hover {
+  background: var(--accent-primary);
+}
+
+/* 时间线主体 */
+.timeline-body {
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+}
+
+/* 时间线标签 */
+.timeline-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.timeline-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.timeline-tag span:first-child {
+  font-size: 0.9rem;
+}
+
+/* 特殊标签样式 */
+.timeline-tag.completed {
+  background: var(--accent-secondary);
+  color: white;
+  border-color: var(--accent-secondary);
+}
+
+.timeline-tag.important {
+  background: var(--accent-warning);
+  color: white;
+  border-color: var(--accent-warning);
+}
+
+.timeline-tag.deleted {
+  background: var(--accent-danger);
+  color: white;
+  border-color: var(--accent-danger);
+}
+
+.timeline-tag.conversation-start {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+.timeline-tag.conversation-summary {
+  background: var(--accent-info);
+  color: white;
+  border-color: var(--accent-info);
+}
+
+.timeline-tag.platform-tag {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+/* 平台特定的标签颜色 */
+.platform-gemini .timeline-tag.platform-tag {
+  background: var(--accent-info);
+  border-color: var(--accent-info);
+}
+
+.platform-notebooklm .timeline-tag.platform-tag {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .universal-timeline-container {
+    padding: 16px;
+  }
+  
+  .conversation-info-card {
+    padding: 16px;
+  }
+  
+  .conversation-info-card h2 {
+    font-size: 1.3rem;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .timeline-content {
+    padding: 16px;
+  }
+  
+  .timeline-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .timeline-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+  
+  .timeline-dot {
+    margin-right: 16px;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 聚焦状态 */
+.timeline-content:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
