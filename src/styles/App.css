@@ -14,6 +14,16 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
   display: flex;
   flex-direction: column;
+  /* 防止整体页面滚动 */
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* 防止iOS Safari底部栏影响 */
+@supports (-webkit-touch-callout: none) {
+  .app-redesigned {
+    height: -webkit-fill-available;
+  }
 }
 
 /* =================== 导航栏 =================== */
@@ -86,7 +96,6 @@
   color: var(--text-primary);
   font-size: 14px;
   outline: none;
-  transition: all var(--transition-fast);
 }
 
 .search-input::placeholder {
@@ -123,7 +132,6 @@
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 14px;
-  transition: all var(--transition-fast);
   white-space: nowrap;
 }
 
@@ -149,7 +157,6 @@
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  transition: all var(--transition-fast);
 }
 
 .icon-btn:hover {
@@ -163,17 +170,28 @@
   display: flex;
   position: relative;
   overflow: hidden;
+  height: calc(100vh - 65px); /* 减去导航栏高度 */
 }
 
 .content-area {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
-  transition: margin-right var(--transition-normal);
+  /* 确保滚动容器独立 */
+  position: relative;
+  z-index: 1;
 }
 
-
-
+/* 移动端滚动优化 */
+@media (max-width: 768px) {
+  .content-area {
+    /* 改善触摸滚动体验 */
+    -webkit-overflow-scrolling: touch;
+    /* 防止滚动穿透 */
+    overscroll-behavior: contain;
+  }
+}
 /* =================== 统计面板 =================== */
 .stats-panel {
   background: var(--bg-secondary);
@@ -229,11 +247,10 @@
   padding: 20px;
   border-radius: var(--radius-md);
   text-align: center;
-  transition: transform var(--transition-fast);
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
+  /* 保留悬停效果但移除动画 */
 }
 
 .stat-value {
@@ -268,7 +285,6 @@
   border-radius: var(--radius-lg);
   padding: 20px;
   cursor: pointer;
-  transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
 }
@@ -282,11 +298,9 @@
   height: 3px;
   background: var(--gradient-secondary);
   transform: scaleX(0);
-  transition: transform var(--transition-normal);
 }
 
 .conversation-tile:hover {
-  transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
   border-color: var(--border-secondary);
 }
@@ -333,7 +347,7 @@
   justify-content: center;
   border-radius: 50%;
   font-size: 14px;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
   margin-left: 8px;
   flex-shrink: 0;
 }
@@ -364,7 +378,6 @@
 .add-file-tile:hover {
   border-color: var(--accent-primary);
   background: var(--bg-hover);
-  transform: none;
 }
 
 .add-file-tile::before {
@@ -548,7 +561,6 @@
   border-radius: 12px;
   padding: 20px;
   cursor: pointer;
-  transition: all var(--transition-fast);
 }
 
 .timeline-content:hover {
@@ -683,7 +695,6 @@
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
-  transition: all var(--transition-fast);
   user-select: none;
 }
 
@@ -703,7 +714,6 @@
   align-items: center;
   justify-content: center;
   margin-right: 8px;
-  transition: transform var(--transition-fast);
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -754,7 +764,6 @@
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-  transition: all var(--transition-fast);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -762,7 +771,6 @@
 
 .tree-message:hover {
   background: var(--bg-tertiary);
-  transform: translateX(4px);
 }
 
 .tree-message-sender {
@@ -792,7 +800,6 @@
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform var(--transition-normal) ease;
   position: absolute;
   right: 0;
   top: 0;
@@ -831,7 +838,6 @@
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all var(--transition-fast);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -885,7 +891,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .file-remove-btn:hover {
@@ -913,6 +919,12 @@
   align-items: center;
   justify-content: center;
   z-index: 2000;
+  /* 防止背景滚动 */
+  overflow: hidden;
+  /* 改善触摸滚动体验 */
+  -webkit-overflow-scrolling: touch;
+  /* 防止滚动穿透到背景 */
+  overscroll-behavior: contain;
 }
 
 [data-theme="light"] .modal-overlay {
@@ -927,7 +939,18 @@
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
+  margin: 16px;
+  max-height: calc(100vh - 32px);
+  /* 移动端模态框滚动优化 */
   overflow-y: auto;
+  overflow-x: hidden;
+  /* 确保模态框滚动独立 */
+  position: relative;
+  z-index: 2001;
+  /* 改善触摸滚动体验 */
+  -webkit-overflow-scrolling: touch;
+  /* 防止内容滚动穿透 */
+  overscroll-behavior: contain;
 }
 
 .modal-content.large {
@@ -956,7 +979,7 @@
   font-size: 24px;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .close-btn:hover {
@@ -980,7 +1003,7 @@
   border: none;
   padding: 8px 16px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
   border-radius: 6px;
 }
 
@@ -1013,7 +1036,6 @@
   border-radius: var(--radius-sm);
   font-size: 14px;
   cursor: pointer;
-  transition: all var(--transition-fast);
   border: none;
   outline: none;
   display: inline-flex;
@@ -1028,7 +1050,6 @@
 
 .btn-primary:hover {
   filter: brightness(1.1);
-  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -1055,7 +1076,7 @@
   color: var(--text-primary);
   font-size: 13px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .btn-detail:hover {
@@ -1079,12 +1100,10 @@
   font-size: 24px;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(31, 111, 235, 0.4);
-  transition: all var(--transition-normal);
   z-index: 999;
 }
 
 .fab:hover {
-  transform: scale(1.1);
   box-shadow: 0 6px 20px rgba(31, 111, 235, 0.6);
 }
 
@@ -1115,7 +1134,6 @@
   border-radius: var(--radius-md);
   padding: 12px 16px;
   cursor: pointer;
-  transition: all var(--transition-fast);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1124,7 +1142,6 @@
 .conversation-item-compact:hover {
   background: var(--bg-tertiary);
   border-color: var(--border-secondary);
-  transform: translateY(-2px);
 }
 
 .conversation-item-compact .message-count {
@@ -1200,7 +1217,7 @@
   justify-content: center;
   font-size: 12px;
   font-weight: bold;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .sort-btn:hover:not(:disabled) {
@@ -1244,6 +1261,11 @@
 
   .content-area {
     padding: 12px;
+    /* 移动端滚动优化 */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* 调整高度计算 */
+    height: calc(100vh - 65px);
   }
 
   .stats-grid {

@@ -59,6 +59,24 @@ function App() {
       const isCurrentFile = fileIndex === currentFileIndex;
       const fileData = isCurrentFile ? processedData : null;
       
+      // 动态获取文件类型显示
+      const getFileTypeDisplay = (data) => {
+        if (!data) return '点击加载...';
+        
+        switch (data.format) {
+          case 'claude':
+            return '💬 Claude对话';
+          case 'claude_conversations':
+            return '📋 对话列表';
+          case 'claude_full_export':
+            return '📦 完整导出';
+          case 'gemini_notebooklm':
+            return `🤖 ${data.platform === 'gemini' ? 'Gemini' : 'NotebookLM'}对话`;
+          default:
+            return '📄 未知格式';
+        }
+      };
+      
       cards.push({
         type: 'file',
         uuid: `file-${fileIndex}`,
@@ -68,9 +86,10 @@ function App() {
         isCurrentFile,
         fileData,
         format: fileData?.format || 'unknown',
+        // 实时计算消息数和对话数
         messageCount: fileData?.chat_history?.length || 0,
         conversationCount: fileData?.format === 'claude_full_export' ? 
-          (fileData?.views?.conversationList?.length || 0) : 1,
+          (fileData?.views?.conversationList?.length || 0) : (fileData ? 1 : 0),
         created_at: file.lastModified ? new Date(file.lastModified).toISOString() : null,
         summary: fileData ? 
           (fileData.format === 'claude_full_export' ? 
@@ -238,15 +257,32 @@ function App() {
           totalMessages: conversationCards.reduce((sum, conv) => sum + (conv.messageCount || 0), 0),
           conversationCount: conversationCards.length,
           fileCount: files.length,
-          markedCount: 0
+          markedCount: stats.completed + stats.important + stats.deleted
         };
       } else {
-        // 在文件网格模式
+        // 在文件网格模式 - 统计当前已加载文件的真实数据
+        let totalMessages = 0;
+        let totalConversations = 0;
+        
+        files.forEach((file, index) => {
+          if (index === currentFileIndex && processedData) {
+            // 使用当前文件的真实数据
+            totalMessages += processedData.chat_history?.length || 0;
+            totalConversations += processedData.format === 'claude_full_export' ? 
+              (processedData.views?.conversationList?.length || 0) : 1;
+          } else {
+            // 对于未加载的文件，使用预估数据
+            const fileCard = fileCards.find(card => card.fileIndex === index);
+            totalMessages += fileCard?.messageCount || 0;
+            totalConversations += fileCard?.conversationCount || 0;
+          }
+        });
+        
         return {
-          totalMessages: fileCards.reduce((sum, file) => sum + (file.messageCount || 0), 0),
-          conversationCount: fileCards.reduce((sum, file) => sum + (file.conversationCount || 0), 0),
+          totalMessages,
+          conversationCount: totalConversations,
           fileCount: files.length,
-          markedCount: 0
+          markedCount: stats.completed + stats.important + stats.deleted
         };
       }
     } else {
@@ -442,6 +478,7 @@ function App() {
                     onFileAdd={() => fileInputRef.current?.click()}
                     showFileInfo={false}
                     isFileMode={allCards.some(card => card.type === 'file')}
+                    showFileManagement={true} // 总是显示文件管理功能
                   />
                 ) : (
                   /* 时间线视图 */

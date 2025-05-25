@@ -7,7 +7,8 @@ const ConversationGrid = ({
   onFileRemove = null,
   onFileAdd = null,
   showFileInfo = false,
-  isFileMode = false
+  isFileMode = false,
+  showFileManagement = false
 }) => {
   const formatDate = (dateStr) => {
     if (!dateStr) return '未知时间';
@@ -59,14 +60,19 @@ const ConversationGrid = ({
               )}
             </div>
             {/* 文件关闭按钮 */}
-            {item.type === 'file' && onFileRemove && (
+            {((item.type === 'file' && onFileRemove) || (item.type === 'conversation' && showFileManagement && onFileRemove)) && (
               <button
                 className="file-close-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onFileRemove(item.fileIndex);
+                  if (item.type === 'file') {
+                    onFileRemove(item.fileIndex);
+                  } else {
+                    // 对于对话卡片，关闭当前文件
+                    onFileRemove(item.fileIndex);
+                  }
                 }}
-                title="关闭文件"
+                title={item.type === 'file' ? '关闭文件' : '关闭当前文件'}
               >
                 ×
               </button>
@@ -128,11 +134,11 @@ const ConversationGrid = ({
       ))}
       
       {/* 添加文件卡片 */}
-      {isFileMode && onFileAdd && (
+      {(isFileMode || showFileManagement) && onFileAdd && (
         <div className="conversation-tile add-file-tile" onClick={onFileAdd}>
           <div className="add-file-content">
             <div className="add-file-icon">+</div>
-            <div className="add-file-text">添加文件</div>
+            <div className="add-file-text">{isFileMode ? '添加文件' : '添加/替换文件'}</div>
             <div className="add-file-hint">支持JSON格式</div>
           </div>
         </div>

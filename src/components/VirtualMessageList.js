@@ -216,7 +216,15 @@ const VirtualMessageList = ({
     <div 
       ref={containerRef}
       className="message-list-enhanced virtual-scroll-container"
-      style={{ height: '100%', overflow: 'auto' }}
+      style={{ 
+        height: '100%', 
+        overflow: 'auto',
+        position: 'relative',
+        // 改善触摸滚动体验
+        WebkitOverflowScrolling: 'touch',
+        // 防止滚动穿透
+        overscrollBehavior: 'contain'
+      }}
     >
       {/* 虚拟滚动占位元素 */}
       <div style={{ height: messages.length * ITEM_HEIGHT, position: 'relative' }}>
