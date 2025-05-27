@@ -289,8 +289,20 @@ const ConversationTimeline = ({
                     {getPlatformAvatar(msg.sender, conversationInfo?.platform)}
                   </div>
                   <div className="sender-info">
-                    <div className="sender-name">{msg.sender_label}</div>
-                    <div className="sender-time">{formatTime(msg.timestamp)}</div>
+                    <div className="sender-name">
+                      {msg.sender_label}
+                      {/* 显示排序位置 */}
+                      {hasCustomSort && (
+                        <span className="sort-position"> (#{index + 1})</span>
+                      )}
+                    </div>
+                    <div className="sender-time">
+                      {formatTime(msg.timestamp)}
+                      {/* 显示分支信息 */}
+                      {msg.branch_id && msg.branch_id !== 0 && (
+                        <span className="branch-info"> · 分支 {msg.branch_id}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -322,8 +334,6 @@ const ConversationTimeline = ({
                       </button>
                     </div>
                   )}
-                  
-                  <button className="btn-detail">查看详情</button>
                 </div>
               </div>
               
@@ -332,6 +342,20 @@ const ConversationTimeline = ({
               </div>
               
               <div className="timeline-footer">
+                {/* 分支信息标签 */}
+                {msg.is_branch_point && (
+                  <div className="timeline-tag branch-point">
+                    <span>🔀</span>
+                    <span>分支点</span>
+                  </div>
+                )}
+                {msg.branch_level > 0 && (
+                  <div className="timeline-tag branch-level">
+                    <span>↳</span>
+                    <span>分支 {msg.branch_level}</span>
+                  </div>
+                )}
+                
                 {/* 消息特征标签 */}
                 {msg.thinking && (
                   <div className="timeline-tag">

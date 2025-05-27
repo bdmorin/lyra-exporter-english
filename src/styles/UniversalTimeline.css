@@ -225,6 +225,18 @@
   color: var(--text-tertiary);
 }
 
+.sort-position {
+  font-size: 0.85rem;
+  color: var(--accent-primary);
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.branch-info {
+  color: var(--accent-info);
+  font-weight: 500;
+}
+
 .btn-detail {
   background: var(--accent-primary);
   color: white;
@@ -329,6 +341,18 @@
   border-color: var(--accent-primary);
 }
 
+.timeline-tag.branch-point {
+  background: var(--accent-warning);
+  color: white;
+  border-color: var(--accent-warning);
+}
+
+.timeline-tag.branch-level {
+  background: var(--accent-info);
+  color: white;
+  border-color: var(--accent-info);
+}
+
 /* 平台特定的标签颜色 */
 .platform-gemini .timeline-tag.platform-tag {
   background: var(--accent-info);
@@ -392,6 +416,8 @@
 .universal-timeline-container.desktop-layout {
   max-width: 1400px;
   position: relative;
+  padding-top: 50px;
+  padding-bottom: 50px;
 }
 
 /* 主内容区域 */
@@ -494,24 +520,25 @@
 /* 文件预览 */
 .file-preview {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 20px;
+  right: 20px;
   height: 60px;
   background: linear-gradient(to bottom, var(--bg-primary) 0%, transparent 100%);
   cursor: pointer;
   transition: all var(--transition-normal);
   z-index: 10;
   overflow: hidden;
+  border-radius: var(--radius-lg);
 }
 
 .file-preview-top {
-  top: -20px;
-  background: linear-gradient(to bottom, var(--bg-primary) 20%, transparent 100%);
+  top: -30px;
+  background: linear-gradient(to bottom, var(--bg-primary) 30%, transparent 100%);
 }
 
 .file-preview-bottom {
-  bottom: -20px;
-  background: linear-gradient(to top, var(--bg-primary) 20%, transparent 100%);
+  bottom: -30px;
+  background: linear-gradient(to top, var(--bg-primary) 30%, transparent 100%);
 }
 
 .file-preview:hover {
@@ -519,11 +546,13 @@
 }
 
 .file-preview-top:hover {
-  top: -10px;
+  top: -40px;
+  height: 80px;
 }
 
 .file-preview-bottom:hover {
-  bottom: -10px;
+  bottom: -40px;
+  height: 80px;
 }
 
 .file-preview-inner {

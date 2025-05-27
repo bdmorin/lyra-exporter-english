@@ -1,5 +1,7 @@
 // components/MessageDetail.js
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const MessageDetail = ({ 
   processedData, 
@@ -19,6 +21,128 @@ const MessageDetail = ({
 
   const currentMessage = getCurrentMessage();
 
+  // 自定义渲染组件，用于搜索高亮
+  const MarkdownComponents = {
+    // 自定义文本渲染器，添加搜索高亮
+    p: ({ children, ...props }) => {
+      if (typeof children === 'string' && searchQuery) {
+        const highlightedText = highlightSearchText(children, searchQuery);
+        return <p {...props} dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+      }
+      return <p {...props}>{children}</p>;
+    },
+    
+    // 自定义列表项渲染器
+    li: ({ children, ...props }) => {
+      if (typeof children === 'string' && searchQuery) {
+        const highlightedText = highlightSearchText(children, searchQuery);
+        return <li {...props} dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+      }
+      return <li {...props}>{children}</li>;
+    },
+    
+    // 自定义标题渲染器
+    h1: ({ children, ...props }) => {
+      if (typeof children === 'string' && searchQuery) {
+        const highlightedText = highlightSearchText(children, searchQuery);
+        return <h1 {...props} dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+      }
+      return <h1 {...props}>{children}</h1>;
+    },
+    
+    h2: ({ children, ...props }) => {
+      if (typeof children === 'string' && searchQuery) {
+        const highlightedText = highlightSearchText(children, searchQuery);
+        return <h2 {...props} dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+      }
+      return <h2 {...props}>{children}</h2>;
+    },
+    
+    h3: ({ children, ...props }) => {
+      if (typeof children === 'string' && searchQuery) {
+        const highlightedText = highlightSearchText(children, searchQuery);
+        return <h3 {...props} dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+      }
+      return <h3 {...props}>{children}</h3>;
+    },
+    
+    h4: ({ children, ...props }) => {
+      if (typeof children === 'string' && searchQuery) {
+        const highlightedText = highlightSearchText(children, searchQuery);
+        return <h4 {...props} dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+      }
+      return <h4 {...props}>{children}</h4>;
+    },
+    
+    h5: ({ children, ...props }) => {
+      if (typeof children === 'string' && searchQuery) {
+        const highlightedText = highlightSearchText(children, searchQuery);
+        return <h5 {...props} dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+      }
+      return <h5 {...props}>{children}</h5>;
+    },
+    
+    h6: ({ children, ...props }) => {
+      if (typeof children === 'string' && searchQuery) {
+        const highlightedText = highlightSearchText(children, searchQuery);
+        return <h6 {...props} dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+      }
+      return <h6 {...props}>{children}</h6>;
+    },
+
+    // 自定义代码块渲染器
+    pre: ({ children, ...props }) => (
+      <pre {...props} style={{ overflowX: 'auto' }}>
+        {children}
+      </pre>
+    ),
+
+    // 自定义行内代码渲染器
+    code: ({ inline, className, children, ...props }) => {
+      if (inline) {
+        return <code className="inline-code" {...props}>{children}</code>;
+      }
+      
+      // 代码块
+      const match = /language-(\w+)/.exec(className || '');
+      const language = match ? match[1] : '';
+      
+      return (
+        <code 
+          className={`code-block ${className || ''}`} 
+          data-language={language}
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    },
+
+    // 自定义链接渲染器
+    a: ({ href, children, ...props }) => (
+      <a 
+        href={href} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        {...props}
+      >
+        {children}
+      </a>
+    ),
+
+    // 自定义引用块渲染器
+    blockquote: ({ children, ...props }) => (
+      <blockquote {...props}>{children}</blockquote>
+    ),
+
+    // 自定义表格渲染器
+    table: ({ children, ...props }) => (
+      <div style={{ overflowX: 'auto' }}>
+        <table {...props}>{children}</table>
+      </div>
+    )
+  };
+
   // 搜索高亮功能
   const highlightSearchText = (text, query) => {
     if (!query || !text) return text;
@@ -27,96 +151,22 @@ const MessageDetail = ({
     return text.replace(regex, '<mark>$1</mark>');
   };
 
-  // 渲染内容（支持改进的Markdown风格）
-  const renderContent = (text) => {
-    if (!text) return '';
-    
-    // 存储代码块内容，避免被其他规则处理
-    const codeBlocks = [];
-    const codeBlockPlaceholder = '___CODEBLOCK___';
-    
-    // 先提取并保存代码块（支持多种格式）
-    let content = text.replace(/```(\w+)?\s*([\s\S]*?)```/g, (match, lang, code) => {
-      const index = codeBlocks.length;
-      const language = lang || '';
-      const cleanCode = code.trim();
-      codeBlocks.push(`<pre class="code-block" data-language="${language}"><code>${cleanCode}</code></pre>`);
-      return `${codeBlockPlaceholder}${index}${codeBlockPlaceholder}`;
-    });
-
-    // 存储行内代码，避免被其他规则处理
-    const inlineCodes = [];
-    const inlineCodePlaceholder = '___INLINECODE___';
-    content = content.replace(/`([^`\n]+)`/g, (match, code) => {
-      const index = inlineCodes.length;
-      inlineCodes.push(`<code class="inline-code">${code}</code>`);
-      return `${inlineCodePlaceholder}${index}${inlineCodePlaceholder}`;
-    });
-
-    // 处理标题（1-6级）
-    content = content.replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>');
-    content = content.replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>');
-    content = content.replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>');
-    content = content.replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>');
-    content = content.replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>');
-    content = content.replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>');
-
-    // 处理列表
-    // 无序列表
-    content = content.replace(/^[-*+]\s+(.+)$/gm, '<li>$1</li>');
-    content = content.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
-    
-    // 有序列表
-    content = content.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
-
-    // 处理引用
-    content = content.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>');
-    content = content.replace(/(<blockquote>.*<\/blockquote>)/gs, (match) => {
-      return match.replace(/<\/blockquote><blockquote>/g, '<br>');
-    });
-
-    // 处理粗体和斜体（注意顺序很重要）
-    content = content.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-    // 处理删除线
-    content = content.replace(/~~(.*?)~~/g, '<del>$1</del>');
-
-    // 处理链接
-    content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-
-    // 处理水平线
-    content = content.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '<hr>');
-
-    // 处理换行（在处理完其他元素后）
-    content = content.replace(/\n\n/g, '</p><p>');
-    content = content.replace(/\n/g, '<br>');
-    
-    // 包装段落
-    if (content.trim()) {
-      content = '<p>' + content + '</p>';
-      // 清理多余的空段落
-      content = content.replace(/<p><\/p>/g, '');
-      content = content.replace(/<p>\s*<\/p>/g, '');
+  // 处理搜索高亮的递归函数
+  const processChildrenForHighlight = (children) => {
+    if (typeof children === 'string') {
+      return searchQuery ? highlightSearchText(children, searchQuery) : children;
     }
-
-    // 恢复代码块
-    codeBlocks.forEach((block, index) => {
-      content = content.replace(`${codeBlockPlaceholder}${index}${codeBlockPlaceholder}`, block);
-    });
-
-    // 恢复行内代码
-    inlineCodes.forEach((code, index) => {
-      content = content.replace(`${inlineCodePlaceholder}${index}${inlineCodePlaceholder}`, code);
-    });
-
-    // 应用搜索高亮（在最后应用，避免破坏HTML结构）
-    if (searchQuery) {
-      content = highlightSearchText(content, searchQuery);
+    
+    if (Array.isArray(children)) {
+      return children.map((child, index) => {
+        if (typeof child === 'string') {
+          return searchQuery ? highlightSearchText(child, searchQuery) : child;
+        }
+        return child;
+      });
     }
-
-    return content;
+    
+    return children;
   };
 
   // 渲染Artifacts
@@ -259,12 +309,14 @@ const MessageDetail = ({
               )}
             </div>
             
-            <div 
-              className="message-text"
-              dangerouslySetInnerHTML={{ 
-                __html: renderContent(currentMessage.display_text) 
-              }}
-            />
+            <div className="message-text">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={MarkdownComponents}
+              >
+                {currentMessage.display_text || ''}
+              </ReactMarkdown>
+            </div>
             
             {renderTools(currentMessage.tools)}
             {renderCitations(currentMessage.citations)}
@@ -276,7 +328,12 @@ const MessageDetail = ({
           <div className="thinking-content">
             {currentMessage.thinking ? (
               <div className="thinking-text">
-                <pre>{currentMessage.thinking}</pre>
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={MarkdownComponents}
+                >
+                  {currentMessage.thinking}
+                </ReactMarkdown>
               </div>
             ) : (
               <div className="placeholder">此消息没有思考过程记录</div>

@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import './styles/App.css';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import './styles/base.css';
 import './styles/themes.css';
 import './styles/UniversalTimeline.css';
+import './styles/message-gfm.css';
 
 // 组件导入
 import WelcomePage from './components/WelcomePage';
@@ -39,6 +40,7 @@ function App() {
   const [selectedFileIndex, setSelectedFileIndex] = useState(null);
   const [showMessageDetail, setShowMessageDetail] = useState(false);
   const [operatedFiles, setOperatedFiles] = useState(new Set()); // 跟踪有操作的文件
+  const [scrollPositions, setScrollPositions] = useState({}); // 记忆滚动位置
   const [exportOptions, setExportOptions] = useState({
     scope: 'current', // 'current' | 'operated' | 'all'
     includeCompleted: true,
@@ -50,6 +52,7 @@ function App() {
   });
   
   const fileInputRef = useRef(null);
+  const contentAreaRef = useRef(null);
 
   // 标记系统 - 使用选中对话的文件UUID
   const currentFileUuid = useMemo(() => {
@@ -176,6 +179,15 @@ function App() {
 
   // 卡片选择处理（文件卡片或对话卡片）
   const handleCardSelect = (card) => {
+    // 保存当前滚动位置
+    if (contentAreaRef.current && viewMode === 'conversations') {
+      const key = currentFile ? `file-${currentFileIndex}` : 'main';
+      setScrollPositions(prev => ({
+        ...prev,
+        [key]: contentAreaRef.current.scrollTop
+      }));
+    }
+    
     if (card.type === 'file') {
       // 点击文件卡片
       if (card.fileIndex !== currentFileIndex) {
@@ -224,6 +236,15 @@ function App() {
     setViewMode('conversations');
     setSelectedConversation(null);
     setSelectedFileIndex(null);
+    
+    // 恢复滚动位置
+    setTimeout(() => {
+      if (contentAreaRef.current) {
+        const key = currentFile ? `file-${currentFileIndex}` : 'main';
+        const savedPosition = scrollPositions[key] || 0;
+        contentAreaRef.current.scrollTop = savedPosition;
+      }
+    }, 0);
   };
 
   // 消息选择处理
@@ -265,8 +286,64 @@ function App() {
     }
   };
 
+  // 获取所有文件的标记统计
+  const getAllMarksStats = useCallback(() => {
+    let totalCompleted = 0;
+    let totalImportant = 0;
+    let totalDeleted = 0;
+    
+    // 遍历所有文件获取标记数据
+    files.forEach((file, index) => {
+      const fileUuid = processedData?.format === 'claude_full_export' ? 
+        null : // claude_full_export 的标记在对话级别
+        `file-${index}`;
+        
+      if (fileUuid) {
+        try {
+          const savedData = localStorage.getItem(`marks_${fileUuid}`);
+          if (savedData) {
+            const parsed = JSON.parse(savedData);
+            totalCompleted += (parsed.completed || []).length;
+            totalImportant += (parsed.important || []).length;
+            totalDeleted += (parsed.deleted || []).length;
+          }
+        } catch (error) {
+          console.error(`获取文件 ${file.name} 的标记失败:`, error);
+        }
+      }
+    });
+    
+    // 对于 claude_full_export，还需要加上当前已加载对话的标记
+    if (processedData?.format === 'claude_full_export') {
+      const conversations = processedData.views?.conversationList || [];
+      conversations.forEach(conv => {
+        const convUuid = `${currentFileIndex}-${conv.uuid}`;
+        try {
+          const savedData = localStorage.getItem(`marks_${convUuid}`);
+          if (savedData) {
+            const parsed = JSON.parse(savedData);
+            totalCompleted += (parsed.completed || []).length;
+            totalImportant += (parsed.important || []).length;
+            totalDeleted += (parsed.deleted || []).length;
+          }
+        } catch (error) {
+          console.error(`获取对话 ${conv.name} 的标记失败:`, error);
+        }
+      });
+    }
+    
+    return {
+      completed: totalCompleted,
+      important: totalImportant,
+      deleted: totalDeleted,
+      total: totalCompleted + totalImportant + totalDeleted
+    };
+  }, [files, processedData, currentFileIndex]);
+  
   // 获取统计数据
   const getStats = () => {
+    const allMarksStats = getAllMarksStats();
+    
     if (viewMode === 'conversations') {
       const fileCards = allCards.filter(card => card.type === 'file');
       const conversationCards = allCards.filter(card => card.type === 'conversation');
@@ -277,7 +354,7 @@ function App() {
           totalMessages: conversationCards.reduce((sum, conv) => sum + (conv.messageCount || 0), 0),
           conversationCount: conversationCards.length,
           fileCount: files.length,
-          markedCount: stats.completed + stats.important + stats.deleted
+          markedCount: allMarksStats.total
         };
       } else {
         // 在文件网格模式 - 统计当前已加载文件的真实数据
@@ -302,7 +379,7 @@ function App() {
           totalMessages,
           conversationCount: totalConversations,
           fileCount: files.length,
-          markedCount: stats.completed + stats.important + stats.deleted
+          markedCount: allMarksStats.total
         };
       }
     } else {
@@ -357,10 +434,29 @@ function App() {
               let data = extractChatData(jsonData, file.name);
               data = detectBranches(data);
               
+              // 获取该文件的标记数据
+              const fileMarks = {
+                completed: new Set(),
+                important: new Set(),
+                deleted: new Set()
+              };
+              
+              try {
+                const markData = localStorage.getItem(`marks_${fileUuid}`);
+                if (markData) {
+                  const parsed = JSON.parse(markData);
+                  fileMarks.completed = new Set(parsed.completed || []);
+                  fileMarks.important = new Set(parsed.important || []);
+                  fileMarks.deleted = new Set(parsed.deleted || []);
+                }
+              } catch (err) {
+                console.error(`获取文件 ${file.name} 的标记失败:`, err);
+              }
+              
               dataToExport.push({
                 data,
                 fileName: file.name,
-                marks: {} // 需要从本地存储获取对应的标记
+                marks: fileMarks
               });
             } catch (err) {
               console.error(`导出文件 ${file.name} 失败:`, err);
@@ -381,10 +477,30 @@ function App() {
             let data = extractChatData(jsonData, file.name);
             data = detectBranches(data);
             
+            // 获取该文件的标记数据
+            const fileMarks = {
+              completed: new Set(),
+              important: new Set(),
+              deleted: new Set()
+            };
+            
+            const fileUuid = `file-${i}`;
+            try {
+              const markData = localStorage.getItem(`marks_${fileUuid}`);
+              if (markData) {
+                const parsed = JSON.parse(markData);
+                fileMarks.completed = new Set(parsed.completed || []);
+                fileMarks.important = new Set(parsed.important || []);
+                fileMarks.deleted = new Set(parsed.deleted || []);
+              }
+            } catch (err) {
+              console.error(`获取文件 ${file.name} 的标记失败:`, err);
+            }
+            
             dataToExport.push({
               data,
               fileName: file.name,
-              marks: {} // 需要从本地存储获取对应的标记
+              marks: fileMarks
             });
           } catch (err) {
             console.error(`导出文件 ${file.name} 失败:`, err);
@@ -578,7 +694,7 @@ function App() {
           {/* 主容器 */}
           <div className="main-container">
             {/* 内容区域 */}
-            <div className="content-area">
+            <div className="content-area" ref={contentAreaRef}>
               {/* 统计面板 */}
               <div className="stats-panel">
                 {/* 当前文件信息 */}
@@ -643,7 +759,23 @@ function App() {
                     enableSorting={true}
                     files={files}
                     currentFileIndex={currentFileIndex}
-                    onFileSwitch={fileActions.switchFile}
+                    onFileSwitch={(index) => {
+                      // 保存当前滚动位置
+                      if (contentAreaRef.current) {
+                        const key = currentFile ? `file-${currentFileIndex}` : 'main';
+                        setScrollPositions(prev => ({
+                          ...prev,
+                          [key]: contentAreaRef.current.scrollTop
+                        }));
+                      }
+                      
+                      // 切换文件
+                      fileActions.switchFile(index);
+                      
+                      // 更新选中状态
+                      setSelectedConversation(`${index}-single`);
+                      setSelectedFileIndex(index);
+                    }}
                     searchQuery={query}
                   />
                 )}
@@ -770,8 +902,16 @@ function App() {
                         onChange={(e) => setExportOptions({...exportOptions, scope: e.target.value})}
                         disabled={viewMode !== 'timeline'}
                       />
-                      <span>当前时间线文件</span>
-                      {viewMode !== 'timeline' && <span className="hint"> (仅在时间线视图中可用)</span>}
+                      <div className="option-label">
+                        <span>当前时间线文件</span>
+                        {viewMode === 'timeline' ? (
+                          <span className="option-description">
+                            仅导出当前正在查看的单个文件
+                          </span>
+                        ) : (
+                          <span className="hint">请先进入时间线视图</span>
+                        )}
+                      </div>
                     </label>
                     <label className="radio-option">
                       <input 
@@ -782,8 +922,16 @@ function App() {
                         onChange={(e) => setExportOptions({...exportOptions, scope: e.target.value})}
                         disabled={operatedFiles.size === 0}
                       />
-                      <span>所有有操作的文件 ({operatedFiles.size}个)</span>
-                      {operatedFiles.size === 0 && <span className="hint"> (还没有进行过标记或排序操作)</span>}
+                      <div className="option-label">
+                        <span>有过操作的文件 <span className="option-count">({operatedFiles.size}个)</span></span>
+                        {operatedFiles.size > 0 ? (
+                          <span className="option-description">
+                            导出所有进行过标记或排序操作的文件
+                          </span>
+                        ) : (
+                          <span className="hint">请先对消息进行标记或排序</span>
+                        )}
+                      </div>
                     </label>
                     <label className="radio-option">
                       <input 
@@ -793,7 +941,12 @@ function App() {
                         checked={exportOptions.scope === 'all'}
                         onChange={(e) => setExportOptions({...exportOptions, scope: e.target.value})}
                       />
-                      <span>所有已加载文件 ({files.length}个)</span>
+                      <div className="option-label">
+                        <span>所有加载的文件 <span className="option-count">({files.length}个)</span></span>
+                        <span className="option-description">
+                          导出当前已加载的全部文件，无论是否有过操作
+                        </span>
+                      </div>
                     </label>
                   </div>
                   
@@ -802,20 +955,27 @@ function App() {
                     <label className="checkbox-option">
                       <input 
                         type="checkbox" 
-                        checked={exportOptions.includeCompleted}
-                        onChange={(e) => setExportOptions({...exportOptions, includeCompleted: e.target.checked})}
-                        disabled
+                        checked={exportOptions.excludeDeleted}
+                        onChange={(e) => setExportOptions({...exportOptions, excludeDeleted: e.target.checked})}
                       />
-                      <span>只导出标记为已完成的消息</span>
-                      <span className="hint"> (待实现)</span>
+                      <div className="option-label">
+                        <span>排除"已删除"标记</span>
+                        <span className="option-description">
+                          不导出标记为已删除的消息
+                        </span>
+                      </div>
                     </label>
                     <label className="checkbox-option">
                       <input 
                         type="checkbox" 
-                        checked={exportOptions.excludeDeleted}
-                        onChange={(e) => setExportOptions({...exportOptions, excludeDeleted: e.target.checked})}
+                        checked={exportOptions.includeCompleted}
+                        onChange={(e) => setExportOptions({...exportOptions, includeCompleted: e.target.checked})}
+                        disabled
                       />
-                      <span>排除标记为已删除的消息</span>
+                      <div className="option-label">
+                        <span>仅导出"已完成"标记</span>
+                        <span className="hint">即将支持</span>
+                      </div>
                     </label>
                   </div>
                   
@@ -827,7 +987,10 @@ function App() {
                         checked={exportOptions.includeThinking}
                         onChange={(e) => setExportOptions({...exportOptions, includeThinking: e.target.checked})}
                       />
-                      <span>包含思考过程</span>
+                      <div className="option-label">
+                        <span>思考过程</span>
+                        <span className="option-description">Claude 的内部思考过程</span>
+                      </div>
                     </label>
                     <label className="checkbox-option">
                       <input 
@@ -835,7 +998,10 @@ function App() {
                         checked={exportOptions.includeArtifacts}
                         onChange={(e) => setExportOptions({...exportOptions, includeArtifacts: e.target.checked})}
                       />
-                      <span>包含 Artifacts</span>
+                      <div className="option-label">
+                        <span>Artifacts</span>
+                        <span className="option-description">代码、文档等生成内容</span>
+                      </div>
                     </label>
                     <label className="checkbox-option">
                       <input 
@@ -843,7 +1009,10 @@ function App() {
                         checked={exportOptions.includeTools}
                         onChange={(e) => setExportOptions({...exportOptions, includeTools: e.target.checked})}
                       />
-                      <span>包含工具使用记录</span>
+                      <div className="option-label">
+                        <span>工具使用</span>
+                        <span className="option-description">搜索、计算等工具调用记录</span>
+                      </div>
                     </label>
                     <label className="checkbox-option">
                       <input 
@@ -851,7 +1020,10 @@ function App() {
                         checked={exportOptions.includeCitations}
                         onChange={(e) => setExportOptions({...exportOptions, includeCitations: e.target.checked})}
                       />
-                      <span>包含引用</span>
+                      <div className="option-label">
+                        <span>引用来源</span>
+                        <span className="option-description">网页链接等引用信息</span>
+                      </div>
                     </label>
                   </div>
                 </div>
