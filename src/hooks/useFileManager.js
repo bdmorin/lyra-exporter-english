@@ -10,6 +10,7 @@ export const useFileManager = () => {
   const [error, setError] = useState(null);
   const [showTypeConflictModal, setShowTypeConflictModal] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
+  const [fileMetadata, setFileMetadata] = useState({}); // 存储每个文件的基本元数据
 
   // 处理当前文件
   const processCurrentFile = useCallback(async () => {
@@ -108,6 +109,39 @@ export const useFileManager = () => {
       return;
     }
 
+    // 提取新文件的元数据
+    const newMetadata = {};
+    for (const file of newFiles) {
+      try {
+        const text = await file.text();
+        const jsonData = JSON.parse(text);
+        const data = extractChatData(jsonData, file.name);
+        
+        // 提取基本信息
+        newMetadata[file.name] = {
+          format: data.format,
+          platform: data.platform || 'claude',
+          messageCount: data.chat_history?.length || 0,
+          conversationCount: data.format === 'claude_full_export' ? 
+            (data.views?.conversationList?.length || 0) : 1,
+          title: data.meta_info?.title || file.name,
+          model: data.meta_info?.model || 
+            (data.chat_history?.find(msg => msg.sender === 'assistant')?.sender_label || 'Claude'),
+          created_at: data.meta_info?.created_at,
+          updated_at: data.meta_info?.updated_at
+        };
+      } catch (err) {
+        console.warn(`无法提取文件 ${file.name} 的元数据:`, err);
+        newMetadata[file.name] = {
+          format: 'unknown',
+          messageCount: 0,
+          conversationCount: 0,
+          title: file.name
+        };
+      }
+    }
+    
+    setFileMetadata(prev => ({ ...prev, ...newMetadata }));
     setFiles(prevFiles => [...prevFiles, ...newFiles]);
     setError(null);
   }, [files, checkFileTypeCompatibility]);
@@ -129,6 +163,17 @@ export const useFileManager = () => {
 
   // 移除文件
   const removeFile = useCallback((index) => {
+    const fileToRemove = files[index];
+    
+    if (fileToRemove) {
+      // 清理元数据
+      setFileMetadata(prev => {
+        const newMetadata = { ...prev };
+        delete newMetadata[fileToRemove.name];
+        return newMetadata;
+      });
+    }
+    
     setFiles(prevFiles => {
       const newFiles = prevFiles.filter((_, i) => i !== index);
       
@@ -141,7 +186,7 @@ export const useFileManager = () => {
       
       return newFiles;
     });
-  }, [currentFileIndex]);
+  }, [currentFileIndex, files]);
 
   // 切换文件
   const switchFile = useCallback((index) => {
@@ -185,6 +230,7 @@ export const useFileManager = () => {
     error,
     showTypeConflictModal,
     pendingFiles,
+    fileMetadata, // 新增文件元数据
     
     // 操作
     actions: {

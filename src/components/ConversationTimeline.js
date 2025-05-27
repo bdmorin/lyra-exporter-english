@@ -1,7 +1,8 @@
 // components/ConversationTimeline.js
 // 通用的对话时间线组件，支持所有格式，使用现有主题系统
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import MessageDetail from './MessageDetail';
 
 const ConversationTimeline = ({ 
   data, // 包含完整的解析数据
@@ -13,8 +14,32 @@ const ConversationTimeline = ({
   conversation = null, // 可选的对话信息（用于claude_full_export格式）
   sortActions = null, // 排序操作
   hasCustomSort = false, // 是否有自定义排序
-  enableSorting = false // 是否启用排序功能
+  enableSorting = false, // 是否启用排序功能
+  files = [], // 文件列表
+  currentFileIndex = null, // 当前文件索引
+  onFileSwitch = null, // 文件切换回调
+  searchQuery = '' // 搜索关键词
 }) => {
+  const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
+  const [activeTab, setActiveTab] = useState('content');
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  
+  // 监听窗口大小变化
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // 选择第一条消息（PC端两栏布局时）
+  useEffect(() => {
+    if (isDesktop && messages.length > 0 && !selectedMessageIndex) {
+      setSelectedMessageIndex(messages[0].index);
+    }
+  }, [isDesktop, messages, selectedMessageIndex]);
   
   // 根据格式获取对话信息
   const getConversationInfo = () => {
@@ -147,10 +172,58 @@ const ConversationTimeline = ({
 
   const conversationInfo = getConversationInfo();
   const platformClass = getPlatformClass(conversationInfo?.platform);
+  
+  // 处理消息选择
+  const handleMessageSelect = (messageIndex) => {
+    setSelectedMessageIndex(messageIndex);
+    if (!isDesktop) {
+      // 移动端调用原来的回调（显示模态框）
+      onMessageSelect(messageIndex);
+    }
+  };
+  
+  // 获取前后文件预览信息
+  const getFilePreview = (direction) => {
+    if (!files || files.length <= 1 || currentFileIndex === null || format === 'claude_full_export') {
+      return null;
+    }
+    
+    const targetIndex = direction === 'prev' ? currentFileIndex - 1 : currentFileIndex + 1;
+    if (targetIndex < 0 || targetIndex >= files.length) {
+      return null;
+    }
+    
+    return {
+      file: files[targetIndex],
+      index: targetIndex,
+      direction
+    };
+  };
+  
+  const prevFilePreview = getFilePreview('prev');
+  const nextFilePreview = getFilePreview('next');
 
   return (
-    <div className={`universal-timeline-container ${platformClass}`}>
-      {/* 对话信息卡片 - 适配所有格式 */}
+    <div className={`universal-timeline-container ${platformClass} ${isDesktop ? 'desktop-layout' : 'mobile-layout'}`}>
+      {/* 文件切换预览 - 顶部 */}
+      {prevFilePreview && isDesktop && (
+        <div 
+          className="file-preview file-preview-top"
+          onClick={() => onFileSwitch && onFileSwitch(prevFilePreview.index)}
+        >
+          <div className="file-preview-inner">
+            <span className="file-preview-arrow">↑</span>
+            <span className="file-preview-name">{prevFilePreview.file.name}</span>
+            <span className="file-preview-hint">点击切换到上一个文件</span>
+          </div>
+        </div>
+      )}
+      
+      {/* 内容区域 */}
+      <div className="timeline-main-content">
+        {/* 左侧时间线 */}
+        <div className="timeline-left-panel">
+          {/* 对话信息卡片 - 适配所有格式 */}
       {conversationInfo && (
         <div className="conversation-info-card">
           <h2>
@@ -207,8 +280,8 @@ const ConversationTimeline = ({
             <div className={`timeline-dot ${msg.sender === 'human' ? 'human' : 'assistant'}`}></div>
             
             <div 
-              className="timeline-content"
-              onClick={() => onMessageSelect(msg.index)}
+              className={`timeline-content ${selectedMessageIndex === msg.index ? 'selected' : ''}`}
+              onClick={() => handleMessageSelect(msg.index)}
             >
               <div className="timeline-header">
                 <div className="timeline-sender">
@@ -331,6 +404,85 @@ const ConversationTimeline = ({
           </div>
         ))}
       </div>
+        </div>
+        
+        {/* 右侧消息详情 - 仅PC端 */}
+        {isDesktop && (
+          <div className="timeline-right-panel">
+            <div className="message-detail-container">
+              {/* 标签页 */}
+              <div className="detail-tabs">
+                <button 
+                  className={`tab ${activeTab === 'content' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('content')}
+                >
+                  内容
+                </button>
+                <button 
+                  className={`tab ${activeTab === 'thinking' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('thinking')}
+                >
+                  思考过程
+                </button>
+                <button 
+                  className={`tab ${activeTab === 'artifacts' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('artifacts')}
+                >
+                  Artifacts
+                </button>
+              </div>
+              
+              {/* 消息详情 */}
+              <div className="detail-content">
+                <MessageDetail
+                  processedData={data}
+                  selectedMessageIndex={selectedMessageIndex}
+                  activeTab={activeTab}
+                  searchQuery={searchQuery}
+                />
+              </div>
+              
+              {/* 标记按钮 */}
+              {selectedMessageIndex !== null && markActions && (
+                <div className="detail-actions">
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => markActions.toggleMark(selectedMessageIndex, 'completed')}
+                  >
+                    {markActions.isMarked(selectedMessageIndex, 'completed') ? '取消完成' : '标记完成'} ✓
+                  </button>
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => markActions.toggleMark(selectedMessageIndex, 'important')}
+                  >
+                    {markActions.isMarked(selectedMessageIndex, 'important') ? '取消重要' : '标记重要'} ⭐
+                  </button>
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => markActions.toggleMark(selectedMessageIndex, 'deleted')}
+                  >
+                    {markActions.isMarked(selectedMessageIndex, 'deleted') ? '取消删除' : '标记删除'} 🗑️
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* 文件切换预览 - 底部 */}
+      {nextFilePreview && isDesktop && (
+        <div 
+          className="file-preview file-preview-bottom"
+          onClick={() => onFileSwitch && onFileSwitch(nextFilePreview.index)}
+        >
+          <div className="file-preview-inner">
+            <span className="file-preview-arrow">↓</span>
+            <span className="file-preview-name">{nextFilePreview.file.name}</span>
+            <span className="file-preview-hint">点击切换到下一个文件</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
