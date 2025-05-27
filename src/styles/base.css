@@ -1,0 +1,52 @@
+/* base.css - 全局样式、变量和重置 */
+@import './layout.css';       /* 导航栏、主容器和基础布局 */
+@import './components.css';   /* 按钮、模态框、表单等通用组件 */
+@import './views.css';        /* 对话网格、时间线、统计面板等视图 */
+@import './responsive.css';   /* 响应式样式和移动端优化 */
+
+/* =================== 全局重置 =================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* =================== 应用根样式 =================== */
+.app-redesigned {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  /* 防止整体页面滚动 */
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* 防止iOS Safari底部栏影响 */
+@supports (-webkit-touch-callout: none) {
+  .app-redesigned {
+    height: -webkit-fill-available;
+  }
+}
+
+/* =================== 通用占位符 =================== */
+.placeholder {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 40px;
+  font-style: italic;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
