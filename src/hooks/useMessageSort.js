@@ -85,6 +85,20 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     saveOrder(newOrder);
   }, [sortedMessages, saveOrder]);
 
+  // 启用排序（创建初始的自定义排序状态）
+  const enableSort = useCallback(() => {
+    if (Object.keys(customOrder).length === 0 && messagesRef.current.length > 0) {
+      // 创建一个基于当前顺序的排序映射
+      const initialOrder = {};
+      messagesRef.current.forEach((msg, idx) => {
+        initialOrder[msg.index] = idx;
+      });
+      
+      setCustomOrder(initialOrder);
+      saveOrder(initialOrder);
+    }
+  }, [customOrder, saveOrder]);
+
   return {
     sortedMessages,
     customOrder,
@@ -92,7 +106,8 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     hasCustomSort: Object.keys(customOrder).length > 0,
     actions: {
       resetSort,
-      moveMessage
+      moveMessage,
+      enableSort
     }
   };
 };

@@ -9,12 +9,15 @@ import WelcomePage from './components/WelcomePage';
 import MessageDetail from './components/MessageDetail';
 import ConversationGrid from './components/ConversationGrid';
 import ConversationTimeline from './components/ConversationTimeline';
+import ConversationFilter from './components/ConversationFilter';
 import ThemeSwitcher from './components/ThemeSwitcher';
+
 // 自定义Hooks导入
 import { useFileManager } from './hooks/useFileManager';
 import { useMarkSystem } from './hooks/useMarkSystem';
 import { useSearch } from './hooks/useSearch';
 import { useMessageSort } from './hooks/useMessageSort';
+import { useConversationFilter } from './hooks/useConversationFilter';
 
 function App() {
   // 使用自定义hooks
@@ -48,21 +51,36 @@ function App() {
     includeThinking: true,
     includeArtifacts: true,
     includeTools: true,
-    includeCitations: true
+    includeCitations: true,
+    includeTimestamps: false // 默认不包含时间戳
   });
   
   const fileInputRef = useRef(null);
   const contentAreaRef = useRef(null);
 
-  // 标记系统 - 使用选中对话的文件UUID
-  const currentFileUuid = useMemo(() => {
-    if (selectedConversation && selectedFileIndex !== null) {
-      return `${files[selectedFileIndex]?.name}-${selectedConversation}`;
+  // 创建原始对话列表（用于筛选）
+  const rawConversations = useMemo(() => {
+    if (viewMode === 'conversations' && processedData?.format === 'claude_full_export') {
+      return processedData.views?.conversationList?.map(conv => ({
+        type: 'conversation',
+        ...conv,
+        fileIndex: currentFileIndex,
+        fileName: files[currentFileIndex]?.name || 'unknown',
+        fileFormat: processedData.format,
+        uuid: `${currentFileIndex}-${conv.uuid}`
+      })) || [];
     }
-    return processedData?.meta_info?.uuid;
-  }, [selectedConversation, selectedFileIndex, files, processedData]);
+    return [];
+  }, [viewMode, processedData, currentFileIndex, files]);
 
-  const { marks, stats, actions: markActions } = useMarkSystem(currentFileUuid);
+  // 对话筛选功能（仅用于claude_full_export格式）
+  const {
+    filters,
+    filteredConversations,
+    availableProjects,
+    filterStats,
+    actions: filterActions
+  } = useConversationFilter(rawConversations);
 
   // 创建统一的卡片列表（包含文件和对话）
   const allCards = useMemo(() => {
@@ -117,24 +135,27 @@ function App() {
       });
     });
     
-    // 如果当前文件是claude_full_export格式，展示对话卡片
+    // 如果当前文件是claude_full_export格式，展示筛选后的对话卡片
     if (viewMode === 'conversations' && processedData?.format === 'claude_full_export') {
-      // 清空文件卡片，改为显示对话卡片
+      // 清空文件卡片，改为显示筛选后的对话卡片
       cards.length = 0;
-      processedData.views?.conversationList?.forEach(conv => {
-        cards.push({
-          type: 'conversation',
-          ...conv,
-          fileIndex: currentFileIndex,
-          fileName: files[currentFileIndex]?.name || 'unknown',
-          fileFormat: processedData.format,
-          uuid: `${currentFileIndex}-${conv.uuid}`
-        });
+      filteredConversations.forEach(conv => {
+        cards.push(conv);
       });
     }
     
     return cards;
-  }, [files, currentFileIndex, processedData, viewMode]);
+  }, [files, currentFileIndex, processedData, viewMode, filteredConversations]);
+
+  // 标记系统 - 使用选中对话的文件UUID
+  const currentFileUuid = useMemo(() => {
+    if (selectedConversation && selectedFileIndex !== null) {
+      return `${files[selectedFileIndex]?.name}-${selectedConversation}`;
+    }
+    return processedData?.meta_info?.uuid;
+  }, [selectedConversation, selectedFileIndex, files, processedData]);
+
+  const { marks, stats, actions: markActions } = useMarkSystem(currentFileUuid);
 
   // 搜索功能 - 搜索卡片和消息
   const searchTarget = useMemo(() => {
@@ -170,6 +191,10 @@ function App() {
     timelineMessages, 
     currentFileUuid
   );
+
+  // 检查是否为claude_full_export格式的对话网格模式
+  const isFullExportConversationMode = viewMode === 'conversations' && 
+    processedData?.format === 'claude_full_export';
 
   // 文件处理
   const handleFileLoad = (e) => {
@@ -411,8 +436,14 @@ function App() {
       case 'current':
         // 导出当前时间线文件
         if (viewMode === 'timeline' && processedData) {
+          // 使用排序后的消息（如果有自定义排序）
+          const messagesToExport = hasCustomSort ? sortedMessages : (processedData.chat_history || []);
+          
           dataToExport = [{
-            data: processedData,
+            data: {
+              ...processedData,
+              chat_history: messagesToExport
+            },
             fileName: currentFile?.name || 'export',
             marks: marks
           }];
@@ -423,43 +454,100 @@ function App() {
       case 'operated':
         // 导出所有有操作的文件
         for (const fileUuid of operatedFiles) {
-          // 解析 fileUuid 获取文件索引
-          const fileIndex = parseInt(fileUuid.split('-')[0]);
-          if (!isNaN(fileIndex) && files[fileIndex]) {
-            const file = files[fileIndex];
-            try {
-              const text = await file.text();
-              const jsonData = JSON.parse(text);
-              const { extractChatData, detectBranches } = await import('../utils/fileParser');
-              let data = extractChatData(jsonData, file.name);
-              data = detectBranches(data);
+          // 解析 fileUuid 获取文件索引或对话UUID
+          if (fileUuid.includes('-') && processedData?.format === 'claude_full_export') {
+            // 处理对话级别的标记
+            const [fileIndex, conversationUuid] = fileUuid.split('-', 2);
+            if (parseInt(fileIndex) === currentFileIndex) {
+              // 如果是当前文件的对话，获取该对话的消息
+              const conversationMessages = processedData.chat_history?.filter(msg => 
+                msg.conversation_uuid === conversationUuid && !msg.is_conversation_header
+              ) || [];
               
-              // 获取该文件的标记数据
-              const fileMarks = {
-                completed: new Set(),
-                important: new Set(),
-                deleted: new Set()
-              };
-              
-              try {
-                const markData = localStorage.getItem(`marks_${fileUuid}`);
-                if (markData) {
-                  const parsed = JSON.parse(markData);
-                  fileMarks.completed = new Set(parsed.completed || []);
-                  fileMarks.important = new Set(parsed.important || []);
-                  fileMarks.deleted = new Set(parsed.deleted || []);
+              if (conversationMessages.length > 0) {
+                const conversation = processedData.views?.conversationList?.find(c => c.uuid === conversationUuid);
+                
+                // 获取该对话的标记数据
+                const convMarks = {
+                  completed: new Set(),
+                  important: new Set(),
+                  deleted: new Set()
+                };
+                
+                try {
+                  const markData = localStorage.getItem(`marks_${fileUuid}`);
+                  if (markData) {
+                    const parsed = JSON.parse(markData);
+                    convMarks.completed = new Set(parsed.completed || []);
+                    convMarks.important = new Set(parsed.important || []);
+                    convMarks.deleted = new Set(parsed.deleted || []);
+                  }
+                } catch (err) {
+                  console.error(`获取对话 ${conversation?.name} 的标记失败:`, err);
                 }
-              } catch (err) {
-                console.error(`获取文件 ${file.name} 的标记失败:`, err);
+                
+                dataToExport.push({
+                  data: {
+                    ...processedData,
+                    chat_history: conversationMessages,
+                    meta_info: {
+                      ...processedData.meta_info,
+                      title: conversation?.name || '未命名对话'
+                    }
+                  },
+                  fileName: `${conversation?.name || 'conversation'}.json`,
+                  marks: convMarks
+                });
               }
-              
-              dataToExport.push({
-                data,
-                fileName: file.name,
-                marks: fileMarks
-              });
-            } catch (err) {
-              console.error(`导出文件 ${file.name} 失败:`, err);
+            }
+          } else {
+            // 处理文件级别的标记
+            const fileIndex = parseInt(fileUuid.split('-')[0]);
+            if (!isNaN(fileIndex) && files[fileIndex]) {
+              const file = files[fileIndex];
+              try {
+                const text = await file.text();
+                const jsonData = JSON.parse(text);
+                const { extractChatData, detectBranches } = await import('./utils/fileParser');
+                let data = extractChatData(jsonData, file.name);
+                data = detectBranches(data);
+                
+                // 如果是当前文件且有自定义排序，使用排序后的消息
+                let messagesToExport = data.chat_history || [];
+                if (fileIndex === currentFileIndex && hasCustomSort) {
+                  messagesToExport = sortedMessages;
+                }
+                
+                // 获取该文件的标记数据
+                const fileMarks = {
+                  completed: new Set(),
+                  important: new Set(),
+                  deleted: new Set()
+                };
+                
+                try {
+                  const markData = localStorage.getItem(`marks_${fileUuid}`);
+                  if (markData) {
+                    const parsed = JSON.parse(markData);
+                    fileMarks.completed = new Set(parsed.completed || []);
+                    fileMarks.important = new Set(parsed.important || []);
+                    fileMarks.deleted = new Set(parsed.deleted || []);
+                  }
+                } catch (err) {
+                  console.error(`获取文件 ${file.name} 的标记失败:`, err);
+                }
+                
+                dataToExport.push({
+                  data: {
+                    ...data,
+                    chat_history: messagesToExport
+                  },
+                  fileName: file.name,
+                  marks: fileMarks
+                });
+              } catch (err) {
+                console.error(`导出文件 ${file.name} 失败:`, err);
+              }
             }
           }
         }
@@ -473,9 +561,15 @@ function App() {
           try {
             const text = await file.text();
             const jsonData = JSON.parse(text);
-            const { extractChatData, detectBranches } = await import('../utils/fileParser');
+            const { extractChatData, detectBranches } = await import('./utils/fileParser');
             let data = extractChatData(jsonData, file.name);
             data = detectBranches(data);
+            
+            // 如果是当前文件且有自定义排序，使用排序后的消息
+            let messagesToExport = data.chat_history || [];
+            if (i === currentFileIndex && hasCustomSort) {
+              messagesToExport = sortedMessages;
+            }
             
             // 获取该文件的标记数据
             const fileMarks = {
@@ -498,7 +592,10 @@ function App() {
             }
             
             dataToExport.push({
-              data,
+              data: {
+                ...data,
+                chat_history: messagesToExport
+              },
               fileName: file.name,
               marks: fileMarks
             });
@@ -524,17 +621,10 @@ function App() {
       }
       
       // 根据导出选项筛选消息
-      let filteredHistory = item.data.chat_history;
+      let filteredHistory = [...(item.data.chat_history || [])];
       
-      if (exportOptions.includeCompleted) {
-        // 只导出已完成的
-        filteredHistory = filteredHistory.filter(msg => 
-          item.marks.completed?.has(msg.index)
-        );
-      }
-      
+      // 排除已删除的消息（如果选择了该选项）
       if (exportOptions.excludeDeleted) {
-        // 排除已删除的
         filteredHistory = filteredHistory.filter(msg => 
           !item.marks.deleted?.has(msg.index)
         );
@@ -548,7 +638,7 @@ function App() {
       const config = {
         exportMarkedOnly: false,
         markedItems: new Set(),
-        hideTimestamps: false,
+        includeTimestamps: exportOptions.includeTimestamps, // 使用时间戳选项
         includeThinking: exportOptions.includeThinking,
         includeArtifacts: exportOptions.includeArtifacts,
         includeTools: exportOptions.includeTools,
@@ -556,23 +646,26 @@ function App() {
         exportObsidianMetadata: false
       };
       
-      markdownContent += exportChatAsMarkdown(exportData, config);
+      try {
+        markdownContent += exportChatAsMarkdown(exportData, config);
+      } catch (err) {
+        console.error(`导出文件 ${item.fileName} 失败:`, err);
+        markdownContent += `\n# 导出失败: ${item.fileName}\n\n错误信息: ${err.message}\n\n`;
+      }
     });
     
     // 保存文件
-    saveTextFile(markdownContent, exportFileName);
-    setShowExportPanel(false);
+    if (saveTextFile(markdownContent, exportFileName)) {
+      setShowExportPanel(false);
+    }
   };
 
   // 获取搜索占位符
   const getSearchPlaceholder = () => {
-    if (viewMode === 'conversations') {
-      const hasConversationCards = allCards.some(card => card.type === 'conversation');
-      if (hasConversationCards) {
-        return "搜索对话标题、项目名称...";
-      } else {
-        return "搜索文件名称、格式...";
-      }
+    if (isFullExportConversationMode) {
+      return "搜索对话标题、项目名称...";
+    } else if (viewMode === 'conversations') {
+      return "搜索文件名称、格式...";
     } else {
       return "搜索消息内容、思考过程、Artifacts...";
     }
@@ -642,21 +735,24 @@ function App() {
                 </button>
               )}
               
-              <div className="search-box">
-                <span className="search-icon">🔍</span>
-                <input 
-                  type="text" 
-                  className="search-input"
-                  placeholder={getSearchPlaceholder()}
-                  value={query}
-                  onChange={(e) => handleSearch(e.target.value)}
-                />
-                {query && (
-                  <div className="search-stats">
-                    显示 {searchStats.displayed} / {searchStats.total} {searchStats.unit}
-                  </div>
-                )}
-              </div>
+              {/* 搜索框 - 只在非claude_full_export对话模式下显示 */}
+              {!isFullExportConversationMode && (
+                <div className="search-box">
+                  <span className="search-icon">🔍</span>
+                  <input 
+                    type="text" 
+                    className="search-input"
+                    placeholder={getSearchPlaceholder()}
+                    value={query}
+                    onChange={(e) => handleSearch(e.target.value)}
+                  />
+                  {query && (
+                    <div className="search-stats">
+                      显示 {searchStats.displayed} / {searchStats.total} {searchStats.unit}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             <div className="navbar-right">
@@ -667,7 +763,8 @@ function App() {
                     <button 
                       className="btn-secondary small"
                       onClick={() => {
-                        sortActions.moveMessage(0, 'none');
+                        // 启用排序
+                        sortActions.enableSort();
                         // 记录有操作的文件
                         if (currentFileUuid) {
                           setOperatedFiles(prev => new Set(prev).add(currentFileUuid));
@@ -728,12 +825,26 @@ function App() {
                 </div>
               </div>
 
+              {/* 筛选器 - 仅在claude_full_export对话模式下显示 */}
+              {isFullExportConversationMode && (
+                <ConversationFilter
+                  filters={filters}
+                  availableProjects={availableProjects}
+                  filterStats={filterStats}
+                  onFilterChange={filterActions.setFilter}
+                  onReset={filterActions.resetFilters}
+                />
+              )}
+
               {/* 视图内容 */}
               <div className="view-content">
                 {viewMode === 'conversations' ? (
                   /* 卡片网格视图（文件或对话） */
                   <ConversationGrid
-                    conversations={query ? filteredMessages : allCards}
+                    conversations={isFullExportConversationMode ? 
+                      (query ? filteredMessages : allCards) : 
+                      (query ? filteredMessages : allCards)
+                    }
                     onConversationSelect={handleCardSelect}
                     onFileRemove={handleFileRemove}
                     onFileAdd={() => fileInputRef.current?.click()}
@@ -754,7 +865,16 @@ function App() {
                     onMessageSelect={handleMessageSelect}
                     markActions={markActions}
                     format={processedData?.format}
-                    sortActions={sortActions}
+                    sortActions={{
+                      ...sortActions,
+                      moveMessage: (index, direction) => {
+                        sortActions.moveMessage(index, direction);
+                        // 记录有操作的文件
+                        if (currentFileUuid) {
+                          setOperatedFiles(prev => new Set(prev).add(currentFileUuid));
+                        }
+                      }
+                    }}
                     hasCustomSort={hasCustomSort}
                     enableSorting={true}
                     files={files}
@@ -981,6 +1101,17 @@ function App() {
                   
                   <div className="option-group">
                     <h3>导出内容</h3>
+                    <label className="checkbox-option">
+                      <input 
+                        type="checkbox" 
+                        checked={exportOptions.includeTimestamps}
+                        onChange={(e) => setExportOptions({...exportOptions, includeTimestamps: e.target.checked})}
+                      />
+                      <div className="option-label">
+                        <span>时间戳</span>
+                        <span className="option-description">包含消息的发送时间</span>
+                      </div>
+                    </label>
                     <label className="checkbox-option">
                       <input 
                         type="checkbox" 
