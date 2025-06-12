@@ -82,6 +82,16 @@ function App() {
     actions: filterActions
   } = useConversationFilter(rawConversations);
 
+
+
+
+
+
+
+
+
+
+
   // 创建统一的卡片列表（包含文件和对话）
   const allCards = useMemo(() => {
     const cards = [];
@@ -172,6 +182,8 @@ function App() {
         } else {
           return processedData.chat_history || [];
         }
+
+
       }
     }
     return [];
@@ -208,8 +220,12 @@ function App() {
     if (contentAreaRef.current && viewMode === 'conversations') {
       const key = currentFile ? `file-${currentFileIndex}` : 'main';
       setScrollPositions(prev => ({
+
+
+
         ...prev,
         [key]: contentAreaRef.current.scrollTop
+
       }));
     }
     
@@ -410,6 +426,10 @@ function App() {
     } else {
       // 在时间线模式
       const messages = Array.isArray(sortedMessages) ? sortedMessages : timelineMessages;
+
+
+
+
       return {
         totalMessages: messages.length,
         conversationCount: 1,
@@ -699,6 +719,11 @@ function App() {
   };
 
   const searchStats = getSearchResultData();
+
+
+
+
+
 
   return (
     <div className="app-redesigned">
@@ -1182,8 +1207,56 @@ function App() {
                 </div>
               </div>
             </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
           )}
         </>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       )}
     </div>
   );
