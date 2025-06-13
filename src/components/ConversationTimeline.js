@@ -1,28 +1,117 @@
-// components/ConversationTimeline.js
-// 通用的对话时间线组件，支持所有格式，使用现有主题系统
-
-import React, { useState, useEffect } from 'react';
+// components/ConversationTimeline.js - 修复分支切换器问题
+import React, { useState, useEffect, useMemo } from 'react';
 import MessageDetail from './MessageDetail';
+import BranchSwitcher, { useBranchSwitcher } from './BranchSwitcher';
 
 const ConversationTimeline = ({ 
-  data, // 包含完整的解析数据
+  data, 
   messages, 
   marks, 
   onMessageSelect,
   markActions,
-  format, // 'claude', 'claude_full_export', 'gemini_notebooklm', etc.
-  conversation = null, // 可选的对话信息（用于claude_full_export格式）
-  sortActions = null, // 排序操作
-  hasCustomSort = false, // 是否有自定义排序
-  enableSorting = false, // 是否启用排序功能
-  files = [], // 文件列表
-  currentFileIndex = null, // 当前文件索引
-  onFileSwitch = null, // 文件切换回调
-  searchQuery = '' // 搜索关键词
+  format,
+  conversation = null,
+  sortActions = null,
+  hasCustomSort = false,
+  enableSorting = false,
+  files = [],
+  currentFileIndex = null,
+  onFileSwitch = null,
+  searchQuery = ''
 }) => {
   const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
   const [activeTab, setActiveTab] = useState('content');
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [branchFilters, setBranchFilters] = useState(new Map()); // 存储每个分支点的当前分支选择
+  const [showAllBranches, setShowAllBranches] = useState(false); // 是否显示所有分支
+  
+  // 分析分支结构 - 修复版本
+  const branchAnalysis = useMemo(() => {
+    console.log("=== 开始分支分析 ===");
+    
+    // 递归查找分支的所有后续消息 - 移到useMemo内部
+    const findBranchMessages = (startUuid, msgDict, parentChildren) => {
+      const branchMessages = [msgDict[startUuid]];
+      const visited = new Set([startUuid]);
+      
+      const traverse = (currentUuid) => {
+        const children = parentChildren[currentUuid] || [];
+        children.forEach(childUuid => {
+          if (!visited.has(childUuid) && msgDict[childUuid]) {
+            visited.add(childUuid);
+            branchMessages.push(msgDict[childUuid]);
+            traverse(childUuid); // 递归查找子消息
+          }
+        });
+      };
+      
+      traverse(startUuid);
+      return branchMessages.sort((a, b) => a.index - b.index);
+    };
+    
+    // 构建消息字典和父子关系
+    const msgDict = {};
+    const parentChildren = {};
+    const branchPoints = new Map();
+    
+    messages.forEach(msg => {
+      const uuid = msg.uuid;
+      const parentUuid = msg.parent_uuid;
+      
+      msgDict[uuid] = msg;
+      
+      if (parentUuid) {
+        if (!parentChildren[parentUuid]) {
+          parentChildren[parentUuid] = [];
+        }
+        parentChildren[parentUuid].push(uuid);
+      }
+    });
+    
+    // 识别分支点并构建分支数据
+    Object.entries(parentChildren).forEach(([parentUuid, children]) => {
+      if (children.length > 1 && msgDict[parentUuid]) {
+        const branchPoint = msgDict[parentUuid];
+        console.log(`🔀 发现分支点: ${branchPoint.uuid.substring(0, 8)} (消息${branchPoint.index})`);
+        
+        // 按时间排序子分支
+        const sortedChildren = children
+          .map(uuid => msgDict[uuid])
+          .filter(msg => msg)
+          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        
+        // 构建分支选项
+        const branches = sortedChildren.map((childMsg, branchIndex) => {
+          // 找到每个分支的所有后续消息
+          const branchMessages = findBranchMessages(childMsg.uuid, msgDict, parentChildren);
+          
+          console.log(`  分支${branchIndex}: ${childMsg.uuid.substring(0, 8)} -> ${branchMessages.length}条消息`);
+          
+          return {
+            branchIndex,
+            startMessage: childMsg,
+            messages: branchMessages,
+            messageCount: branchMessages.length,
+            path: `branch_${branchPoint.uuid}_${branchIndex}`,
+            preview: childMsg.display_text ? 
+              (childMsg.display_text.length > 50 ? childMsg.display_text.substring(0, 50) + '...' : childMsg.display_text) :
+              '...'
+          };
+        });
+        
+        branchPoints.set(parentUuid, {
+          branchPoint,
+          branches,
+          currentBranchIndex: 0 // 默认选择第一个分支
+        });
+      }
+    });
+    
+    console.log(`总共发现 ${branchPoints.size} 个分支点`);
+    console.log("=== 分支分析完成 ===");
+    
+    return { branchPoints, msgDict, parentChildren };
+  }, [messages]);
   
   // 监听窗口大小变化
   useEffect(() => {
@@ -34,16 +123,108 @@ const ConversationTimeline = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
+  // 初始化分支过滤器 - 修复状态同步问题
+  useEffect(() => {
+    if (branchAnalysis.branchPoints.size > 0 && branchFilters.size === 0 && !showAllBranches) {
+      console.log("=== 初始化分支过滤器 ===");
+      const initialFilters = new Map();
+      
+      // 为每个分支点设置默认选择（第一个分支）
+      branchAnalysis.branchPoints.forEach((branchData, branchPointUuid) => {
+        initialFilters.set(branchPointUuid, 0);
+        console.log(`设置分支点 ${branchPointUuid.substring(0, 8)} 默认选择: 分支0`);
+      });
+      
+      setBranchFilters(initialFilters);
+      console.log("=== 分支过滤器初始化完成 ===");
+    }
+  }, [branchAnalysis.branchPoints, branchFilters.size, showAllBranches]);
+
   // 选择第一条消息（PC端两栏布局时）
   useEffect(() => {
     if (isDesktop && messages.length > 0 && !selectedMessageIndex) {
       setSelectedMessageIndex(messages[0].index);
     }
   }, [isDesktop, messages, selectedMessageIndex]);
-  
+
+  // 计算当前应该显示的消息 - 修复版本，支持显示全部分支
+  const displayMessages = useMemo(() => {
+    console.log("=== 开始计算显示消息 ===");
+    
+    // 如果开启了显示全部分支模式，显示所有消息
+    if (showAllBranches) {
+      console.log("显示全部分支模式，显示所有消息");
+      return messages;
+    }
+    
+    // 如果没有分支过滤器，显示所有消息
+    if (branchFilters.size === 0) {
+      console.log("无分支过滤，显示所有消息");
+      return messages;
+    }
+
+    // 收集所有被选中分支的消息UUID
+    const visibleMessageUuids = new Set();
+    
+    // 首先添加所有没有分支的消息（在分支点之前的消息）
+    messages.forEach(msg => {
+      let shouldInclude = true;
+      
+      // 检查这个消息是否在某个分支点之后
+      for (const [branchPointUuid, selectedBranchIndex] of branchFilters.entries()) {
+        const branchData = branchAnalysis.branchPoints.get(branchPointUuid);
+        if (!branchData) continue;
+        
+        const branchPoint = branchData.branchPoint;
+        const selectedBranch = branchData.branches[selectedBranchIndex];
+        
+        // 如果这个消息在分支点之后，需要检查是否在选中的分支中
+        if (msg.index > branchPoint.index) {
+          const isInSelectedBranch = selectedBranch.messages.some(branchMsg => branchMsg.uuid === msg.uuid);
+          if (!isInSelectedBranch) {
+            shouldInclude = false;
+            break;
+          }
+        }
+      }
+      
+      if (shouldInclude) {
+        visibleMessageUuids.add(msg.uuid);
+      }
+    });
+    
+    // 过滤消息
+    const filtered = messages.filter(msg => visibleMessageUuids.has(msg.uuid));
+    
+    console.log(`显示 ${filtered.length} / ${messages.length} 条消息`);
+    console.log("=== 消息计算完成 ===");
+    
+    return filtered;
+  }, [messages, branchFilters, branchAnalysis, showAllBranches]);
+
+  // 处理分支切换
+  const handleBranchSwitch = (branchPointUuid, newBranchIndex) => {
+    console.log(`切换分支: ${branchPointUuid.substring(0, 8)} -> 分支${newBranchIndex}`);
+    setShowAllBranches(false); // 退出显示全部分支模式
+    setBranchFilters(prev => {
+      const newFilters = new Map(prev);
+      newFilters.set(branchPointUuid, newBranchIndex);
+      return newFilters;
+    });
+  };
+
+  // 切换显示全部分支
+  const handleShowAllBranches = () => {
+    console.log(`切换显示全部分支: ${!showAllBranches}`);
+    setShowAllBranches(!showAllBranches);
+    if (!showAllBranches) {
+      // 进入全部分支模式时，清空分支过滤器
+      setBranchFilters(new Map());
+    }
+  };
+
   // 根据格式获取对话信息
   const getConversationInfo = () => {
-    // 如果有传入conversation参数，优先使用（claude_full_export格式）
     if (conversation) {
       return {
         name: conversation.name || '未命名对话',
@@ -51,7 +232,7 @@ const ConversationTimeline = ({
         created_at: conversation.created_at || '未知时间',
         updated_at: conversation.updated_at || '未知时间',
         is_starred: conversation.is_starred || false,
-        messageCount: messages.length,
+        messageCount: displayMessages.length,
         platform: 'Claude'
       };
     }
@@ -63,12 +244,12 @@ const ConversationTimeline = ({
     switch (format) {
       case 'claude':
         return {
-          name: metaInfo.title || '未命名对话',
+          name: metaInfo.title || data?.meta_info?.title || '未命名对话',
           model: getModelFromMessages() || 'Claude',
-          created_at: metaInfo.created_at || '未知时间',
-          updated_at: metaInfo.updated_at || '未知时间',
+          created_at: metaInfo.created_at || data?.meta_info?.created_at || '未知时间',
+          updated_at: metaInfo.updated_at || data?.meta_info?.updated_at || '未知时间',
           is_starred: data.raw_data?.is_starred || false,
-          messageCount: messages.length,
+          messageCount: displayMessages.length,
           platform: 'Claude'
         };
       
@@ -81,19 +262,8 @@ const ConversationTimeline = ({
           created_at: metaInfo.created_at || '未知时间',
           updated_at: metaInfo.updated_at || '未知时间',
           is_starred: false,
-          messageCount: messages.length,
+          messageCount: displayMessages.length,
           platform: platform
-        };
-      
-      case 'claude_conversations':
-        return {
-          name: metaInfo.title || 'Claude对话列表',
-          model: 'Claude',
-          created_at: metaInfo.created_at || '未知时间',
-          updated_at: metaInfo.updated_at || '未知时间',
-          is_starred: false,
-          messageCount: messages.length,
-          platform: 'Claude'
         };
       
       default:
@@ -103,7 +273,7 @@ const ConversationTimeline = ({
           created_at: metaInfo.created_at || '未知时间',
           updated_at: metaInfo.updated_at || '未知时间',
           is_starred: false,
-          messageCount: messages.length,
+          messageCount: displayMessages.length,
           platform: '未知'
         };
     }
@@ -111,7 +281,7 @@ const ConversationTimeline = ({
 
   // 从消息中推断模型信息
   const getModelFromMessages = () => {
-    const assistantMsg = messages.find(msg => msg.sender === 'assistant');
+    const assistantMsg = displayMessages.find(msg => msg.sender === 'assistant');
     return assistantMsg?.sender_label || 'Claude';
   };
 
@@ -158,7 +328,7 @@ const ConversationTimeline = ({
     }
   };
 
-  // 获取平台特定的标识符（用于样式类名）
+  // 获取平台特定的标识符
   const getPlatformClass = (platform) => {
     switch (platform?.toLowerCase()) {
       case 'gemini':
@@ -177,12 +347,11 @@ const ConversationTimeline = ({
   const handleMessageSelect = (messageIndex) => {
     setSelectedMessageIndex(messageIndex);
     if (!isDesktop) {
-      // 移动端调用原来的回调（显示模态框）
       onMessageSelect(messageIndex);
     }
   };
   
-  // 获取前后文件预览信息
+  // 获取文件预览信息
   const getFilePreview = (direction) => {
     if (!files || files.length <= 1 || currentFileIndex === null || format === 'claude_full_export') {
       return null;
@@ -223,211 +392,188 @@ const ConversationTimeline = ({
       <div className="timeline-main-content">
         {/* 左侧时间线 */}
         <div className="timeline-left-panel">
-          {/* 对话信息卡片 - 适配所有格式 */}
-      {conversationInfo && (
-        <div className="conversation-info-card">
-          <h2>
-            {conversationInfo.name} 
-            {conversationInfo.is_starred && ' ⭐'}
-            <span className="platform-badge">{conversationInfo.platform}</span>
-          </h2>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">模型/平台</span>
-              <span className="info-value">{conversationInfo.model}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">创建时间</span>
-              <span className="info-value">{conversationInfo.created_at}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">消息数</span>
-              <span className="info-value">{conversationInfo.messageCount}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">最后更新</span>
-              <span className="info-value">{conversationInfo.updated_at}</span>
-            </div>
-          </div>
-          
-          {/* 格式特定的额外信息 */}
-          {format === 'claude_full_export' && data?.meta_info?.totalConversations && (
-            <div className="export-info">
-              <span>📦 完整导出包含 {data.meta_info.totalConversations} 个对话</span>
-            </div>
-          )}
-          
-          {format === 'claude_conversations' && (
-            <div className="export-info">
-              <span>📋 对话列表摘要视图</span>
-            </div>
-          )}
-          
-          {format === 'gemini_notebooklm' && (
-            <div className="export-info">
-              <span>🤖 {conversationInfo.platform}对话记录</span>
+          {/* 对话信息卡片 */}
+          {conversationInfo && (
+            <div className="conversation-info-card">
+              <h2>
+                {conversationInfo.name} 
+                {conversationInfo.is_starred && ' ⭐'}
+                <span className="platform-badge">{conversationInfo.platform}</span>
+              </h2>
+              <div className="info-grid">
+                <div className="info-item">
+                  <span className="info-label">模型/平台</span>
+                  <span className="info-value">{conversationInfo.model}</span>
+                </div>
+                <div className="info-item">
+                  <span className="info-label">创建时间</span>
+                  <span className="info-value">{conversationInfo.created_at}</span>
+                </div>
+                <div className="info-item">
+                  <span className="info-label">显示消息数</span>
+                  <span className="info-value">{conversationInfo.messageCount}</span>
+                </div>
+                <div className="info-item">
+                  <span className="info-label">最后更新</span>
+                  <span className="info-value">{conversationInfo.updated_at}</span>
+                </div>
+              </div>
+              
+              {/* 分支统计和控制 */}
+              {branchAnalysis.branchPoints.size > 0 && (
+                <div className="export-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>🔀 检测到 {branchAnalysis.branchPoints.size} 个分支点</span>
+                  <button 
+                    className="btn-secondary small"
+                    onClick={handleShowAllBranches}
+                    style={{ marginLeft: '12px' }}
+                    title={showAllBranches ? "只显示选中分支" : "显示全部分支"}
+                  >
+                    {showAllBranches ? '🔍 筛选分支' : '📋 显示全部'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* 时间线 */}
-      <div className="timeline">
-        <div className="timeline-line"></div>
-        
-        {messages.map((msg, index) => (
-          <div key={msg.index || index} className="timeline-message">
-            <div className={`timeline-dot ${msg.sender === 'human' ? 'human' : 'assistant'}`}></div>
+          {/* 时间线 */}
+          <div className="timeline">
+            <div className="timeline-line"></div>
             
-            <div 
-              className={`timeline-content ${selectedMessageIndex === msg.index ? 'selected' : ''}`}
-              onClick={() => handleMessageSelect(msg.index)}
-            >
-              <div className="timeline-header">
-                <div className="timeline-sender">
-                  <div className={`timeline-avatar ${msg.sender === 'human' ? 'human' : 'assistant'}`}>
-                    {getPlatformAvatar(msg.sender, conversationInfo?.platform)}
+            {displayMessages.map((msg, index) => {
+              // 检查这个消息后面是否应该显示分支切换器
+              const branchData = branchAnalysis.branchPoints.get(msg.uuid);
+              const shouldShowBranchSwitcher = branchData && branchData.branches.length > 1;
+              
+              return (
+                <React.Fragment key={msg.uuid || index}>
+                  {/* 消息项 */}
+                  <div className="timeline-message">
+                    <div className={`timeline-dot ${msg.sender === 'human' ? 'human' : 'assistant'}`}></div>
+                    
+                    <div 
+                      className={`timeline-content ${selectedMessageIndex === msg.index ? 'selected' : ''}`}
+                      onClick={() => handleMessageSelect(msg.index)}
+                    >
+                      <div className="timeline-header">
+                        <div className="timeline-sender">
+                          <div className={`timeline-avatar ${msg.sender === 'human' ? 'human' : 'assistant'}`}>
+                            {getPlatformAvatar(msg.sender, conversationInfo?.platform)}
+                          </div>
+                          <div className="sender-info">
+                            <div className="sender-name">
+                              {msg.sender_label}
+                              {hasCustomSort && (
+                                <span className="sort-position"> (#{index + 1})</span>
+                              )}
+                            </div>
+                            <div className="sender-time">
+                              {formatTime(msg.timestamp)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="timeline-actions">
+                          {enableSorting && hasCustomSort && sortActions && (
+                            <div className="sort-controls">
+                              <button 
+                                className="sort-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sortActions.moveMessage(index, 'up');
+                                }}
+                                disabled={index === 0}
+                                title="上移"
+                              >
+                                ↑
+                              </button>
+                              <button 
+                                className="sort-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sortActions.moveMessage(index, 'down');
+                                }}
+                                disabled={index === displayMessages.length - 1}
+                                title="下移"
+                              >
+                                ↓
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="timeline-body">
+                        {getPreview(msg.display_text)}
+                      </div>
+                      
+                      <div className="timeline-footer">
+                        {/* 消息特征标签 */}
+                        {msg.thinking && (
+                          <div className="timeline-tag">
+                            <span>💭</span>
+                            <span>有思考过程</span>
+                          </div>
+                        )}
+                        {msg.artifacts && msg.artifacts.length > 0 && (
+                          <div className="timeline-tag">
+                            <span>🔧</span>
+                            <span>{msg.artifacts.length}个Artifacts</span>
+                          </div>
+                        )}
+                        {msg.tools && msg.tools.length > 0 && (
+                          <div className="timeline-tag">
+                            <span>🔍</span>
+                            <span>使用了工具</span>
+                          </div>
+                        )}
+                        {msg.citations && msg.citations.length > 0 && (
+                          <div className="timeline-tag">
+                            <span>📎</span>
+                            <span>{msg.citations.length}个引用</span>
+                          </div>
+                        )}
+                        
+                        {/* 标记状态 */}
+                        {isMarked(msg.index, 'completed') && (
+                          <div className="timeline-tag completed">
+                            <span>✓</span>
+                            <span>已完成</span>
+                          </div>
+                        )}
+                        {isMarked(msg.index, 'important') && (
+                          <div className="timeline-tag important">
+                            <span>⭐</span>
+                            <span>重要</span>
+                          </div>
+                        )}
+                        {isMarked(msg.index, 'deleted') && (
+                          <div className="timeline-tag deleted">
+                            <span>🗑️</span>
+                            <span>已删除</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="sender-info">
-                    <div className="sender-name">
-                      {msg.sender_label}
-                      {/* 显示排序位置 */}
-                      {hasCustomSort && (
-                        <span className="sort-position"> (#{index + 1})</span>
-                      )}
-                    </div>
-                    <div className="sender-time">
-                      {formatTime(msg.timestamp)}
-                      {/* 显示分支信息 */}
-                      {msg.branch_id && msg.branch_id !== 0 && (
-                        <span className="branch-info"> · 分支 {msg.branch_id}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="timeline-actions">
-                  {/* 排序按钮 */}
-                  {enableSorting && hasCustomSort && sortActions && (
-                    <div className="sort-controls">
-                      <button 
-                        className="sort-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          sortActions.moveMessage(index, 'up');
-                        }}
-                        disabled={index === 0}
-                        title="上移"
-                      >
-                        ↑
-                      </button>
-                      <button 
-                        className="sort-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          sortActions.moveMessage(index, 'down');
-                        }}
-                        disabled={index === messages.length - 1}
-                        title="下移"
-                      >
-                        ↓
-                      </button>
-                    </div>
+                  
+                  {/* 分支切换器 - 在分支点消息之后显示 */}
+                  {shouldShowBranchSwitcher && (
+                    <BranchSwitcher
+                      key={`branch-${msg.uuid}`}
+                      branchPoint={msg}
+                      availableBranches={branchData.branches}
+                      currentBranchIndex={showAllBranches ? -1 : (branchFilters.get(msg.uuid) ?? branchData.currentBranchIndex)}
+                      onBranchChange={(newIndex) => handleBranchSwitch(msg.uuid, newIndex)}
+                      onShowAllBranches={handleShowAllBranches}
+                      showAllMode={showAllBranches}
+                      className="timeline-branch-switcher"
+                    />
                   )}
-                </div>
-              </div>
-              
-              <div className="timeline-body">
-                {getPreview(msg.display_text)}
-              </div>
-              
-              <div className="timeline-footer">
-                {/* 分支信息标签 */}
-                {msg.is_branch_point && (
-                  <div className="timeline-tag branch-point">
-                    <span>🔀</span>
-                    <span>分支点</span>
-                  </div>
-                )}
-                {msg.branch_level > 0 && (
-                  <div className="timeline-tag branch-level">
-                    <span>↳</span>
-                    <span>分支 {msg.branch_level}</span>
-                  </div>
-                )}
-                
-                {/* 消息特征标签 */}
-                {msg.thinking && (
-                  <div className="timeline-tag">
-                    <span>💭</span>
-                    <span>有思考过程</span>
-                  </div>
-                )}
-                {msg.artifacts && msg.artifacts.length > 0 && (
-                  <div className="timeline-tag">
-                    <span>🔧</span>
-                    <span>{msg.artifacts.length}个Artifacts</span>
-                  </div>
-                )}
-                {msg.tools && msg.tools.length > 0 && (
-                  <div className="timeline-tag">
-                    <span>🔍</span>
-                    <span>使用了工具</span>
-                  </div>
-                )}
-                {msg.citations && msg.citations.length > 0 && (
-                  <div className="timeline-tag">
-                    <span>📎</span>
-                    <span>{msg.citations.length}个引用</span>
-                  </div>
-                )}
-                
-                {/* 特殊标签 - 适配不同格式 */}
-                {format === 'claude_full_export' && msg.is_conversation_header && (
-                  <div className="timeline-tag conversation-start">
-                    <span>🗣️</span>
-                    <span>对话开始</span>
-                  </div>
-                )}
-                
-                {format === 'claude_conversations' && msg.conversation_data && (
-                  <div className="timeline-tag conversation-summary">
-                    <span>📄</span>
-                    <span>对话摘要</span>
-                  </div>
-                )}
-                
-                {(format === 'gemini_notebooklm') && (
-                  <div className="timeline-tag platform-tag">
-                    <span>{conversationInfo?.platform === 'Gemini' ? '✨' : '📚'}</span>
-                    <span>{conversationInfo?.platform}</span>
-                  </div>
-                )}
-                
-                {/* 标记状态 */}
-                {isMarked(msg.index, 'completed') && (
-                  <div className="timeline-tag completed">
-                    <span>✓</span>
-                    <span>已完成</span>
-                  </div>
-                )}
-                {isMarked(msg.index, 'important') && (
-                  <div className="timeline-tag important">
-                    <span>⭐</span>
-                    <span>重要</span>
-                  </div>
-                )}
-                {isMarked(msg.index, 'deleted') && (
-                  <div className="timeline-tag deleted">
-                    <span>🗑️</span>
-                    <span>已删除</span>
-                  </div>
-                )}
-              </div>
-            </div>
+                </React.Fragment>
+              );
+            })}
           </div>
-        ))}
-      </div>
         </div>
         
         {/* 右侧消息详情 - 仅PC端 */}

@@ -368,95 +368,32 @@ const extractToolResult = (resultItem) => {
   };
 };
 
-// 检测对话中的分支结构
+// 检测对话中的分支结构 - 改进版本，支持合并重复分支
 export const detectBranches = (processedData) => {
   if (!processedData || !processedData.chat_history) {
     return processedData;
   }
   
   try {
-    // 提取消息列表
-    const messages = processedData.chat_history;
+    console.log("=== 开始分支检测和重复合并 ===");
+    console.log("原始消息数量:", processedData.chat_history.length);
     
-    // 构建消息字典(UUID -> 消息)
-    const msgDict = {};
-    const parentChildren = {}; // 父消息UUID -> 子消息UUID列表
+    // 第一步：检测并合并重复分支
+    let messages = mergeRedundantBranches(processedData.chat_history);
     
-    messages.forEach(msg => {
-      const uuid = msg.uuid;
-      const parentUuid = msg.parent_uuid;
-      
-      if (!uuid) return;
-      
-      msgDict[uuid] = msg;
-      
-      if (parentUuid) {
-        if (!parentChildren[parentUuid]) {
-          parentChildren[parentUuid] = [];
-        }
-        parentChildren[parentUuid].push(uuid);
-      }
-    });
+    // 第二步：重新检测分支结构
+    messages = detectBranchStructure(messages);
     
-    // 找到分支点（有多个子消息的消息）
-    const branchPoints = [];
+    console.log("处理后消息数量:", messages.length);
+    console.log("=== 分支检测完成 ===");
     
-    Object.entries(parentChildren).forEach(([parentUuid, children]) => {
-      if (children.length > 1) {
-        branchPoints.push(parentUuid);
-        if (msgDict[parentUuid]) {
-          msgDict[parentUuid].is_branch_point = true;
-        }
-      }
-    });
-    
-    // 为每个分支点找出其所有分支
-    const branches = [];
-    let branchId = 0;
-    
-    branchPoints.forEach(branchPoint => {
-      const children = parentChildren[branchPoint] || [];
-      
-      children.forEach((childUuid, i) => {
-        const branch = [];
-        let currentUuid = childUuid;
-        
-        // 添加分支点消息
-        if (branchPoint in msgDict) {
-          branch.push(msgDict[branchPoint]);
-        }
-        
-        // 跟踪这条分支链
-        while (currentUuid && msgDict[currentUuid]) {
-          const msg = msgDict[currentUuid];
-          msg.branch_level = i + 1;
-          branch.push(msg);
-          
-          // 找下一条消息
-          const children = parentChildren[currentUuid] || [];
-          if (children.length > 0) {
-            currentUuid = children[0]; // 只跟踪第一个子消息
-          } else {
-            currentUuid = null;
-          }
-        }
-        
-        // 为这条分支分配ID
-        branchId += 1;
-        branch.forEach(msg => {
-          msg.branch_id = branchId;
-        });
-        
-        branches.push(branch);
-      });
-    });
-    
-    // 更新processedData
-    return {
-      ...processedData,
-      branches,
-      branch_points: branchPoints
-    };
+  return {
+    ...processedData,
+    chat_history: messages,
+    // 保留原有的分支信息格式以确保兼容性
+    branches: extractBranchInfo(messages),
+    branch_points: messages.filter(msg => msg.is_branch_point).map(msg => msg.uuid)
+  };
     
   } catch (error) {
     console.error("分支检测出错:", error);
@@ -467,6 +404,329 @@ export const detectBranches = (processedData) => {
     };
   }
 };
+
+// 合并重复分支的函数
+function mergeRedundantBranches(messages) {
+  console.log("\n--- 开始合并重复分支 ---");
+  
+  const duplicateGroups = findDuplicateMessages(messages);
+  
+  if (duplicateGroups.length === 0) {
+    console.log("未发现重复分支");
+    return messages;
+  }
+  
+  const toDelete = new Set();
+  const uuidRemapping = new Map();
+  
+  duplicateGroups.forEach(group => {
+    if (group.length <= 1) return;
+    
+    console.log(`\n发现 ${group.length} 个重复消息:`);
+    console.log(`内容: "${group[0].textContent.substring(0, 50)}..."`);
+    
+    // 按时间排序，保留最早的
+    group.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const keepMessage = group[0];
+    const removeMessages = group.slice(1);
+    
+    console.log(`保留消息: ${keepMessage.uuid.substring(0, 8)} (${keepMessage.timestamp})`);
+    
+    removeMessages.forEach(msg => {
+      console.log(`删除消息: ${msg.uuid.substring(0, 8)} (${msg.timestamp})`);
+      toDelete.add(msg.uuid);
+      uuidRemapping.set(msg.uuid, keepMessage.uuid);
+    });
+  });
+  
+  // 应用删除
+  let filteredMessages = messages.filter(msg => !toDelete.has(msg.uuid));
+  
+  // 更新所有消息的父级引用
+  filteredMessages = filteredMessages.map(msg => {
+    const originalParent = msg.parent_uuid;
+    const newParent = uuidRemapping.get(originalParent) || originalParent;
+    
+    if (newParent !== originalParent) {
+      console.log(`更新父级引用: ${msg.uuid.substring(0, 8)} 的父级从 ${originalParent.substring(0, 8)} 改为 ${newParent.substring(0, 8)}`);
+    }
+    
+    return {
+      ...msg,
+      parent_uuid: newParent
+    };
+  });
+  
+  console.log(`合并完成: 删除了 ${toDelete.size} 个重复消息`);
+  console.log("--- 重复分支合并完成 ---\n");
+  
+  return filteredMessages;
+}
+
+// 寻找重复消息的函数
+function findDuplicateMessages(messages) {
+  const contentGroups = new Map();
+  
+  messages.forEach(msg => {
+    // 跳过系统消息和对话头
+    if (msg.sender === 'system' || msg.is_conversation_header) {
+      return;
+    }
+    
+    const textContent = extractTextContent(msg);
+    if (!textContent.trim()) return;
+    
+    const normalizedText = normalizeText(textContent);
+    const key = `${msg.sender}:${normalizedText}`;
+    
+    if (!contentGroups.has(key)) {
+      contentGroups.set(key, []);
+    }
+    
+    contentGroups.get(key).push({
+      ...msg,
+      textContent,
+      normalizedText
+    });
+  });
+  
+  const duplicateGroups = [];
+  for (const [key, group] of contentGroups.entries()) {
+    if (group.length > 1) {
+      // 验证：确保这些消息确实是"无意义的重复"
+      const validDuplicates = filterValidDuplicates(group);
+      if (validDuplicates.length > 1) {
+        duplicateGroups.push(validDuplicates);
+      }
+    }
+  }
+  
+  return duplicateGroups;
+}
+
+// 提取消息的文本内容
+function extractTextContent(msg) {
+  // 优先使用 display_text
+  if (msg.display_text && msg.display_text.trim()) {
+    return msg.display_text;
+  }
+  
+  // 备选：raw_text
+  if (msg.raw_text && msg.raw_text.trim()) {
+    return msg.raw_text;
+  }
+  
+  // 备选：从 content_items 中提取
+  if (msg.content_items && Array.isArray(msg.content_items)) {
+    const textContents = msg.content_items
+      .filter(item => item.type === 'text')
+      .map(item => item.text)
+      .join('\n');
+    if (textContents.trim()) return textContents;
+  }
+  
+  return '';
+}
+
+// 验证是否为有效的重复
+function filterValidDuplicates(duplicates) {
+  // 按时间排序
+  const sortedByTime = [...duplicates].sort((a, b) => {
+    const timeA = new Date(a.timestamp);
+    const timeB = new Date(b.timestamp);
+    return timeA - timeB;
+  });
+  
+  const validDuplicates = [];
+  
+  for (let i = 0; i < sortedByTime.length; i++) {
+    const current = sortedByTime[i];
+    
+    // 检查与后续消息的关系
+    for (let j = i + 1; j < sortedByTime.length; j++) {
+      const later = sortedByTime[j];
+      const timeA = new Date(current.timestamp);
+      const timeB = new Date(later.timestamp);
+      const timeDiff = timeB - timeA;
+      
+      // 如果在5分钟内有完全相同的消息，且文本内容不是很短（避免误删简单回复）
+      if (timeDiff <= 5 * 60 * 1000 && current.normalizedText.length > 10) {
+        // 这很可能是无意义的重复
+        if (!validDuplicates.includes(current)) validDuplicates.push(current);
+        if (!validDuplicates.includes(later)) validDuplicates.push(later);
+      }
+    }
+  }
+  
+  return validDuplicates;
+}
+
+// 文本标准化函数
+function normalizeText(text) {
+  return text
+    .trim()
+    .replace(/\s+/g, ' ') // 将多个连续空白字符替换为单个空格
+    .replace(/[。！？.!?]+$/g, '') // 移除末尾的标点符号
+    .toLowerCase();
+}
+
+// 检测分支结构的函数 - 改进版本，支持树形分支路径
+function detectBranchStructure(messages) {
+  console.log("--- 开始重新检测分支结构 ---");
+  
+  // 重置分支信息
+  messages = messages.map(msg => ({
+    ...msg,
+    branch_level: 0,
+    branch_id: null,
+    branch_path: "main", // 新增：分支路径标识
+    is_branch_point: false
+  }));
+  
+  // 构建消息字典和父子关系
+  const msgDict = {};
+  const parentChildren = {};
+  
+  messages.forEach(msg => {
+    const uuid = msg.uuid;
+    const parentUuid = msg.parent_uuid;
+    
+    if (!uuid) return;
+    
+    msgDict[uuid] = msg;
+    
+    if (parentUuid) {
+      if (!parentChildren[parentUuid]) {
+        parentChildren[parentUuid] = [];
+      }
+      parentChildren[parentUuid].push(uuid);
+    }
+  });
+  
+  // 标记分支点
+  Object.entries(parentChildren).forEach(([parentUuid, children]) => {
+    if (children.length > 1 && msgDict[parentUuid]) {
+      msgDict[parentUuid].is_branch_point = true;
+    }
+  });
+  
+  // 使用深度优先搜索来分配分支路径
+  const visited = new Set();
+  
+  // 找到根节点（没有父节点的消息）
+  const rootNodes = messages.filter(msg => 
+    !msg.parent_uuid || !msgDict[msg.parent_uuid]
+  );
+  
+  // 为每个根节点开始DFS
+  rootNodes.forEach((rootNode, rootIndex) => {
+    if (!visited.has(rootNode.uuid)) {
+      assignBranchPaths(rootNode.uuid, "main", [], msgDict, parentChildren, visited);
+    }
+  });
+  
+  console.log("--- 分支结构检测完成 ---\n");
+  
+  // 返回更新后的消息
+  return messages.map(msg => msgDict[msg.uuid] || msg);
+}
+
+// 提取分支信息的辅助函数（保持向后兼容）
+function extractBranchInfo(messages) {
+  const branches = [];
+  const branchGroups = new Map();
+  
+  // 按分支路径分组
+  messages.forEach(msg => {
+    if (msg.branch_path && msg.branch_path !== "main") {
+      const branchPath = msg.branch_path;
+      if (!branchGroups.has(branchPath)) {
+        branchGroups.set(branchPath, []);
+      }
+      branchGroups.get(branchPath).push(msg);
+    }
+  });
+  
+  // 转换为原有的分支格式
+  branchGroups.forEach((msgs, path) => {
+    branches.push({
+      path: path,
+      level: msgs[0]?.branch_level || 0,
+      id: msgs[0]?.branch_id || null,
+      messages: msgs.map(msg => msg.uuid)
+    });
+  });
+  
+  return branches;
+}
+
+// 递归分配分支路径的函数
+function assignBranchPaths(nodeUuid, currentPath, pathStack, msgDict, parentChildren, visited) {
+  if (visited.has(nodeUuid) || !msgDict[nodeUuid]) {
+    return;
+  }
+  
+  visited.add(nodeUuid);
+  const node = msgDict[nodeUuid];
+  
+  // 设置当前节点的分支信息
+  node.branch_path = currentPath;
+  
+  // 计算分支级别（从main路径开始计算深度）
+  if (currentPath === "main") {
+    node.branch_level = 0;
+    node.branch_id = null;
+  } else {
+    // 计算分支深度
+    const pathParts = currentPath.split('.');
+    node.branch_level = pathParts.length - 1;
+    
+    // 生成分支ID（结合路径信息）
+    node.branch_id = currentPath.replace('main.', '').replace('main', '0');
+  }
+  
+  // 获取子节点
+  const children = parentChildren[nodeUuid] || [];
+  
+  if (children.length === 0) {
+    // 叶子节点，无需处理
+    return;
+  } else if (children.length === 1) {
+    // 单个子节点，继续当前路径
+    assignBranchPaths(children[0], currentPath, pathStack, msgDict, parentChildren, visited);
+  } else {
+    // 多个子节点，创建分支
+    // 按时间排序子节点
+    const sortedChildren = children
+      .map(uuid => msgDict[uuid])
+      .filter(msg => msg)
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      .map(msg => msg.uuid);
+    
+    console.log(`在 ${nodeUuid.substring(0, 8)} 发现 ${sortedChildren.length} 个分支`);
+    
+    sortedChildren.forEach((childUuid, index) => {
+      let childPath;
+      
+      if (index === 0) {
+        // 第一个分支继续主路径
+        childPath = currentPath;
+      } else {
+        // 后续分支创建新路径
+        if (currentPath === "main") {
+          childPath = `main.${index}`;
+        } else {
+          childPath = `${currentPath}.${index}`;
+        }
+      }
+      
+      console.log(`  分支 ${index}: ${childUuid.substring(0, 8)} -> 路径: ${childPath}`);
+      
+      // 递归处理子分支
+      assignBranchPaths(childUuid, childPath, [...pathStack, index], msgDict, parentChildren, visited);
+    });
+  }
+}
 
 // 解析Claude对话列表格式 (chat_conversations.json)
 const extractClaudeConversationsData = (jsonData, fileName) => {

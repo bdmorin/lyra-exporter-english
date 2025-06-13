@@ -664,3 +664,220 @@
 .detail-content::-webkit-scrollbar-thumb:hover {
   background: var(--accent-primary);
 }
+
+/* 时间线分支切换器集成样式 */
+/* 添加到你的 UniversalTimeline.css 中 */
+
+/* 时间线中的分支切换器 */
+.timeline-branch-switcher {
+  margin: 20px 0 20px 48px; /* 与时间线内容对齐 */
+  position: relative;
+  z-index: 5;
+}
+
+/* 在时间线中的特殊样式 */
+.timeline .timeline-branch-switcher {
+  /* 添加连接线效果 */
+  position: relative;
+}
+
+.timeline .timeline-branch-switcher::before {
+  content: '';
+  position: absolute;
+  left: -48px;
+  top: 50%;
+  width: 24px;
+  height: 2px;
+  background: var(--accent-primary);
+  transform: translateY(-50%);
+}
+
+.timeline .timeline-branch-switcher::after {
+  content: '';
+  position: absolute;
+  left: -36px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  border: 2px solid var(--bg-primary);
+}
+
+/* 分支点标签样式增强 */
+.timeline-tag.branch-point {
+  background: var(--accent-warning);
+  color: white;
+  border-color: var(--accent-warning);
+  font-weight: 600;
+}
+
+/* 分支切换器悬停效果 */
+.timeline-branch-switcher:hover::before {
+  background: var(--accent-info);
+}
+
+.timeline-branch-switcher:hover::after {
+  background: var(--accent-info);
+}
+
+/* 分支级别标签的增强样式 */
+.timeline-tag.branch-level {
+  background: var(--accent-info);
+  color: white;
+  border-color: var(--accent-info);
+}
+
+/* 当前分支的视觉增强 */
+.timeline-message .timeline-content {
+  position: relative;
+}
+
+/* 为不同分支级别添加左边框 */
+.timeline-message[data-branch-level="1"] .timeline-content {
+  border-left: 3px solid var(--accent-secondary);
+  padding-left: 17px;
+}
+
+.timeline-message[data-branch-level="2"] .timeline-content {
+  border-left: 3px solid var(--accent-warning);
+  padding-left: 17px;
+}
+
+.timeline-message[data-branch-level="3"] .timeline-content {
+  border-left: 3px solid var(--accent-danger);
+  padding-left: 17px;
+}
+
+/* 分支切换器在移动端的优化 */
+@media (max-width: 768px) {
+  .timeline-branch-switcher {
+    margin: 16px 0 16px 40px;
+  }
+  
+  .timeline .timeline-branch-switcher::before {
+    left: -40px;
+    width: 20px;
+  }
+  
+  .timeline .timeline-branch-switcher::after {
+    left: -30px;
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* 分支切换动画 */
+.timeline-message {
+  transition: all 0.3s ease;
+}
+
+.timeline-message.branch-switching {
+  opacity: 0.5;
+  transform: translateX(-10px);
+}
+
+/* 分支指示器增强 */
+.branch-info .branch-preview {
+  max-height: 2.6em; /* 限制预览高度为两行 */
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* 分支计数器的特殊样式 */
+.branch-counter {
+  background: linear-gradient(45deg, var(--accent-primary), var(--accent-info));
+  color: white !important;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+}
+
+/* 分支选项的hover效果增强 */
+.branch-option:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* 活跃分支的特殊效果 */
+.branch-option.active {
+  box-shadow: 0 0 0 2px var(--accent-primary);
+  transform: scale(1.02);
+}
+
+/* 分支路径可视化 */
+.timeline-sender .sender-time .branch-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 0.75rem;
+  color: var(--accent-info);
+}
+
+/* 分支点的特殊时间线样式 */
+.timeline-message:has(.timeline-tag.branch-point) .timeline-dot {
+  background: var(--accent-warning);
+  border-color: var(--accent-warning);
+  animation: branchPointPulse 2s infinite;
+}
+
+@keyframes branchPointPulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(251, 133, 0, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(251, 133, 0, 0);
+  }
+}
+
+/* 分支列表的滚动增强 */
+.branch-list {
+  border-top: 3px solid var(--accent-primary);
+}
+
+.branch-list::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+/* 键盘导航支持 */
+.branch-arrow:focus,
+.branch-info:focus,
+.branch-option:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* 无障碍访问增强 */
+.branch-switcher[aria-expanded="true"] .branch-list {
+  display: block;
+}
+
+.branch-switcher[aria-expanded="false"] .branch-list {
+  display: none;
+}
+
+/* 深色主题的特殊优化 */
+[data-theme="dark"] .timeline .timeline-branch-switcher::before {
+  background: var(--accent-info);
+}
+
+[data-theme="dark"] .timeline .timeline-branch-switcher::after {
+  background: var(--accent-info);
+  border-color: var(--bg-primary);
+}
+
+/* 亮色主题的特殊优化 */
+[data-theme="light"] .timeline .timeline-branch-switcher::before {
+  background: var(--accent-primary);
+}
+
+[data-theme="light"] .timeline .timeline-branch-switcher::after {
+  background: var(--accent-primary);
+  border-color: white;
+}

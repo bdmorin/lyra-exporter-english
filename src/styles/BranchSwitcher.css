@@ -1,0 +1,345 @@
+/* BranchSwitcher.css - Claude风格的分支切换器样式 */
+
+.branch-switcher {
+  margin: 16px 0;
+  position: relative;
+  z-index: 10;
+}
+
+/* 主切换控件 */
+.branch-switcher-main {
+  display: flex;
+  align-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.branch-switcher-main:hover {
+  border-color: var(--border-secondary);
+  box-shadow: var(--shadow-md);
+}
+
+/* 箭头按钮 */
+.branch-arrow {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.branch-arrow:hover:not(.disabled) {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: white;
+  transform: scale(1.05);
+}
+
+.branch-arrow.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: var(--bg-primary);
+}
+
+.branch-arrow svg {
+  transition: transform var(--transition-fast);
+}
+
+.branch-arrow:hover:not(.disabled) svg {
+  transform: scale(1.1);
+}
+
+/* 分支信息区域 */
+.branch-info {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.branch-info:hover {
+  background: var(--bg-secondary);
+}
+
+.branch-info.switching {
+  opacity: 0.6;
+  transform: scale(0.98);
+}
+
+/* 分支信息主要内容 */
+.branch-info-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.branch-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.branch-counter {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* 分支预览 */
+.branch-preview {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 展开指示器 */
+.expand-indicator {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast);
+}
+
+.expand-indicator.expanded {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* 展开的分支列表 */
+.branch-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  margin-top: 8px;
+  padding: 8px;
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+  animation: branchListSlideIn 0.2s ease-out;
+}
+
+@keyframes branchListSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 分支选项 */
+.branch-option {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+}
+
+.branch-option:last-child {
+  margin-bottom: 0;
+}
+
+.branch-option:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+}
+
+.branch-option.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: white;
+}
+
+.branch-option.active .branch-option-name,
+.branch-option.active .branch-option-preview {
+  color: white;
+}
+
+.branch-option.active .branch-option-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* 分支选项头部 */
+.branch-option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.branch-option-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.branch-option-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* 分支选项预览 */
+.branch-option-preview {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 分支切换动画效果 */
+@keyframes branchSwitchPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.branch-info.switching {
+  animation: branchSwitchPulse 0.3s ease-in-out;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .branch-switcher-main {
+    padding: 6px;
+    gap: 6px;
+  }
+  
+  .branch-arrow {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .branch-info {
+    padding: 6px 10px;
+  }
+  
+  .branch-name {
+    font-size: 0.85rem;
+  }
+  
+  .branch-preview {
+    font-size: 0.75rem;
+  }
+  
+  .branch-list {
+    margin-top: 4px;
+    padding: 6px;
+  }
+  
+  .branch-option {
+    padding: 10px;
+  }
+  
+  .branch-option-name {
+    font-size: 0.85rem;
+  }
+  
+  .branch-option-preview {
+    font-size: 0.75rem;
+  }
+}
+
+/* 暗色主题优化 */
+[data-theme="dark"] .branch-switcher-main {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .branch-arrow {
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .branch-list {
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
+}
+
+/* 亮色主题优化 */
+[data-theme="light"] .branch-switcher-main {
+  background: #f8f9fa;
+  border-color: #e9ecef;
+}
+
+[data-theme="light"] .branch-arrow {
+  background: white;
+  border-color: #e9ecef;
+}
+
+[data-theme="light"] .branch-list {
+  background: white;
+  border-color: #e9ecef;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 焦点和无障碍访问 */
+.branch-arrow:focus-visible,
+.branch-info:focus-visible,
+.branch-option:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* 滚动条样式 */
+.branch-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.branch-list::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 3px;
+}
+
+.branch-list::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 3px;
+}
+
+.branch-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}

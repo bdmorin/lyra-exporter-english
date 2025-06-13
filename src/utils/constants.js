@@ -34,6 +34,6 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 // 本地存储键名
 export const STORAGE_KEYS = {
-  MARKS_PREFIX: 'chat_marks_',
+  MARKS_PREFIX: 'marks_',
   USER_SETTINGS: 'user_settings'
 };

@@ -301,9 +301,6 @@ const MessageDetail = ({
             <div className="message-header">
               <h3>{currentMessage.sender_label}</h3>
               <span className="timestamp">{currentMessage.timestamp}</span>
-              {currentMessage.is_branch_point && (
-                <span className="branch-indicator">🔀 分支点</span>
-              )}
               {currentMessage.branch_level > 0 && (
                 <span className="branch-indicator">↳{currentMessage.branch_level} 分支</span>
               )}
