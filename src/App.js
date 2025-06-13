@@ -854,36 +854,6 @@ function App() {
               >
                 🐛 调试
               </button>
-              
-              {/* 时间线模式下的排序控制 */}
-              {viewMode === 'timeline' && (
-                <div className="timeline-controls">
-                  {!hasCustomSort ? (
-                    <button 
-                      className="btn-secondary small"
-                      onClick={() => {
-                        // 启用排序
-                        sortActions.enableSort();
-                        // 记录有操作的文件
-                        if (currentFileUuid) {
-                          setOperatedFiles(prev => new Set(prev).add(currentFileUuid));
-                        }
-                      }}
-                      title="启用消息排序"
-                    >
-                      🔄 启用排序
-                    </button>
-                  ) : (
-                    <button 
-                      className="btn-secondary small"
-                      onClick={() => sortActions.resetSort()}
-                      title="重置排序"
-                    >
-                      🔄 重置排序
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           </nav>
 

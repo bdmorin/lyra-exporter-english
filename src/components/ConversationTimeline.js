@@ -25,7 +25,7 @@ const ConversationTimeline = ({
   const [branchFilters, setBranchFilters] = useState(new Map()); // 存储每个分支点的当前分支选择
   const [showAllBranches, setShowAllBranches] = useState(false); // 是否显示所有分支
   
-  // 分析分支结构 - 修复版本
+  // 分析分支结构 - 修复版本，支持claude_full_export格式
   const branchAnalysis = useMemo(() => {
     console.log("=== 开始分支分析 ===");
     
@@ -54,7 +54,21 @@ const ConversationTimeline = ({
     const parentChildren = {};
     const branchPoints = new Map();
     
-    messages.forEach(msg => {
+    // 过滤消息：只处理当前对话的消息（对于claude_full_export格式）
+    let analysisMessages = messages;
+    if (format === 'claude_full_export' && conversation?.uuid) {
+      // 从conversation.uuid中提取真实的对话UUID（去掉文件索引前缀）
+      const realConversationUuid = conversation.uuid.includes('-') ? 
+        conversation.uuid.split('-').slice(1).join('-') : conversation.uuid;
+      
+      analysisMessages = messages.filter(msg => 
+        msg.conversation_uuid === realConversationUuid && 
+        !msg.is_conversation_header
+      );
+      console.log(`claude_full_export格式，筛选对话 ${realConversationUuid}，消息数: ${analysisMessages.length}`);
+    }
+    
+    analysisMessages.forEach(msg => {
       const uuid = msg.uuid;
       const parentUuid = msg.parent_uuid;
       
@@ -111,7 +125,7 @@ const ConversationTimeline = ({
     console.log("=== 分支分析完成 ===");
     
     return { branchPoints, msgDict, parentChildren };
-  }, [messages]);
+  }, [messages, format, conversation]);
   
   // 监听窗口大小变化
   useEffect(() => {
@@ -216,10 +230,18 @@ const ConversationTimeline = ({
   // 切换显示全部分支
   const handleShowAllBranches = () => {
     console.log(`切换显示全部分支: ${!showAllBranches}`);
-    setShowAllBranches(!showAllBranches);
-    if (!showAllBranches) {
+    const newShowAllBranches = !showAllBranches;
+    setShowAllBranches(newShowAllBranches);
+    
+    if (newShowAllBranches) {
       // 进入全部分支模式时，清空分支过滤器
       setBranchFilters(new Map());
+    } else {
+      // 退出全部分支模式，自动重置排序
+      if (hasCustomSort && sortActions?.resetSort) {
+        console.log("退出显示全部模式，自动重置排序");
+        sortActions.resetSort();
+      }
     }
   };
 
@@ -423,14 +445,38 @@ const ConversationTimeline = ({
               {branchAnalysis.branchPoints.size > 0 && (
                 <div className="export-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>🔀 检测到 {branchAnalysis.branchPoints.size} 个分支点</span>
-                  <button 
-                    className="btn-secondary small"
-                    onClick={handleShowAllBranches}
-                    style={{ marginLeft: '12px' }}
-                    title={showAllBranches ? "只显示选中分支" : "显示全部分支"}
-                  >
-                    {showAllBranches ? '🔍 筛选分支' : '📋 显示全部'}
-                  </button>
+                  <div className="timeline-controls" style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="btn-secondary small"
+                      onClick={handleShowAllBranches}
+                      title={showAllBranches ? "只显示选中分支" : "显示全部分支"}
+                    >
+                      {showAllBranches ? '🔍 筛选分支' : '📋 显示全部'}
+                    </button>
+                    {/* 排序控制 - 只在显示全部分支时显示 */}
+                    {showAllBranches && sortActions && (
+                      !hasCustomSort ? (
+                        <button 
+                          className="btn-secondary small"
+                          onClick={() => {
+                            // 启用排序
+                            sortActions.enableSort();
+                          }}
+                          title="启用消息排序"
+                        >
+                          🔄 启用排序
+                        </button>
+                      ) : (
+                        <button 
+                          className="btn-secondary small"
+                          onClick={() => sortActions.resetSort()}
+                          title="重置排序"
+                        >
+                          🔄 重置排序
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -443,7 +489,9 @@ const ConversationTimeline = ({
             {displayMessages.map((msg, index) => {
               // 检查这个消息后面是否应该显示分支切换器
               const branchData = branchAnalysis.branchPoints.get(msg.uuid);
-              const shouldShowBranchSwitcher = branchData && branchData.branches.length > 1;
+              const shouldShowBranchSwitcher = branchData && 
+                branchData.branches.length > 1 && 
+                !showAllBranches; // 在显示全部分支模式时不显示分支切换器
               
               return (
                 <React.Fragment key={msg.uuid || index}>
@@ -463,7 +511,7 @@ const ConversationTimeline = ({
                           <div className="sender-info">
                             <div className="sender-name">
                               {msg.sender_label}
-                              {hasCustomSort && (
+                              {hasCustomSort && showAllBranches && (
                                 <span className="sort-position"> (#{index + 1})</span>
                               )}
                             </div>
@@ -474,7 +522,7 @@ const ConversationTimeline = ({
                         </div>
                         
                         <div className="timeline-actions">
-                          {enableSorting && hasCustomSort && sortActions && (
+                          {enableSorting && hasCustomSort && showAllBranches && sortActions && (
                             <div className="sort-controls">
                               <button 
                                 className="sort-btn"
@@ -563,10 +611,10 @@ const ConversationTimeline = ({
                       key={`branch-${msg.uuid}`}
                       branchPoint={msg}
                       availableBranches={branchData.branches}
-                      currentBranchIndex={showAllBranches ? -1 : (branchFilters.get(msg.uuid) ?? branchData.currentBranchIndex)}
+                      currentBranchIndex={branchFilters.get(msg.uuid) ?? branchData.currentBranchIndex}
                       onBranchChange={(newIndex) => handleBranchSwitch(msg.uuid, newIndex)}
                       onShowAllBranches={handleShowAllBranches}
-                      showAllMode={showAllBranches}
+                      showAllMode={false}
                       className="timeline-branch-switcher"
                     />
                   )}

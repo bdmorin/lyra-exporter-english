@@ -1,79 +1,94 @@
-/* themes.css - 优化后的主题系统（包含所有主题相关样式） */
+/* themes.css - Claude.ai 风格主题系统 */
 
 /* =================== CSS 变量定义 =================== */
 :root {
-  /* 深色主题（默认） */
-  --bg-primary: #0d1117;
-  --bg-secondary: #161b22;
-  --bg-tertiary: #21262d;
-  --bg-overlay: rgba(13, 17, 23, 0.95);
+  /* 深色主题（默认）- Claude.ai 风格 */
+  --bg-primary: #262624;
+  --bg-secondary: #2a2a2a;
+  --bg-tertiary: #3a3a3a;
+  --bg-overlay: rgba(38, 38, 36, 0.95);
   
-  --border-primary: #30363d;
-  --border-secondary: #484f58;
-  --border-active: #58a6ff;
+  --border-primary: #404040;
+  --border-secondary: #555555;
+  --border-active: #4475A5;
   
-  --text-primary: #f0f6fc;
-  --text-secondary: #9ca3af;
-  --text-tertiary: #6e7681;
-  --text-link: #58a6ff;
+  --text-primary: #f5f5f5;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --text-link: #f59e0b;
   
-  --accent-primary: #1f6feb;
-  --accent-secondary: #2ea043;
-  --accent-danger: #f85149;
-  --accent-warning: #fb8500;
-  --accent-info: #58a6ff;
+  /* Claude.ai 温暖橙色系 */
+  --accent-primary: #d97706;      /* 主要橙色 - terra cotta */
+  --accent-secondary: #C2C0B6;    /* 人类头像背景色 */
+  --accent-danger: #dc2626;       /* 红色（危险） */
+  --accent-warning: #f59e0b;      /* 黄色（警告） */
+  --accent-info: #FAF9F5;         /* 白色（边框和信息） */
   
-  --gradient-primary: linear-gradient(135deg, #58a6ff 0%, #79c0ff 100%);
-  --gradient-secondary: linear-gradient(135deg, #1f6feb, #58a6ff);
+  --gradient-primary: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  --gradient-secondary: linear-gradient(135deg, #ea580c, #d97706);
   
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.6);
+  /* 头像专用颜色 */
+  --avatar-human-bg: #C2C0B6;     /* 人类头像背景 */
+  --avatar-human-text: #272725;   /* 人类头像文字 */
+  --avatar-ai-bg: #D97757;        /* AI头像背景 */
+  --avatar-ai-text: white;        /* AI头像文字 */
   
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   
   --transition-fast: 0.2s ease;
   --transition-normal: 0.3s ease;
 }
 
-/* 亮色主题（马卡龙色系） */
+/* 浅色主题 - Claude.ai 风格 */
 [data-theme="light"] {
-  --bg-primary: #fef6f0;
-  --bg-secondary: #fff8f3;
-  --bg-tertiary: #ffe8dc;
-  --bg-overlay: rgba(255, 248, 243, 0.95);
+  --bg-primary: #F2F0E9;
+  --bg-secondary: #faf8f7;
+  --bg-tertiary: #f5f1ef;
+  --bg-overlay: rgba(242, 240, 233, 0.95);
   
-  --border-primary: #f5d5c8;
-  --border-secondary: #e8b4a0;
-  --border-active: #ff8fab;
+  --border-primary: #e7e2df;
+  --border-secondary: #d6ccc6;
+  --border-active: #4475A5;
   
-  --text-primary: #3d2824;
-  --text-secondary: #6d5147;
-  --text-tertiary: #8d6e63;
-  --text-link: #e63946;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-tertiary: #6b7280;
+  --text-link: #c2410c;
   
-  --accent-primary: #ff8fab;
-  --accent-secondary: #52b788;
-  --accent-danger: #e63946;
-  --accent-warning: #f77f00;
-  --accent-info: #4895ef;
+  /* Claude.ai 温暖橙色系 - 浅色版本 */
+  --accent-primary: #ea580c;      /* 主要橙色 - 更鲜艳的 terra cotta */
+  --accent-secondary: #C2C0B6;    /* 人类头像背景色 */
+  --accent-danger: #dc2626;       /* 红色（危险） */
+  --accent-warning: #d97706;      /* 黄色（警告） */
+  --accent-info: #141413;         /* 深灰色（边框和信息） */
   
-  --gradient-primary: linear-gradient(135deg, #ff8fab 0%, #ffc0cb 100%);
-  --gradient-secondary: linear-gradient(135deg, #52b788, #95d5b2);
+  --gradient-primary: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  --gradient-secondary: linear-gradient(135deg, #fb923c, #ea580c);
   
-  --shadow-sm: 0 2px 4px rgba(147, 86, 58, 0.1);
-  --shadow-md: 0 4px 12px rgba(147, 86, 58, 0.15);
-  --shadow-lg: 0 12px 24px rgba(147, 86, 58, 0.2);
+  /* 头像专用颜色 */
+  --avatar-human-bg: #C2C0B6;     /* 人类头像背景 */
+  --avatar-human-text: #272725;   /* 人类头像文字 */
+  --avatar-ai-bg: #D97757;        /* AI头像背景 */
+  --avatar-ai-text: white;        /* AI头像文字 */
+  
+  --shadow-sm: 0 1px 3px rgba(194, 65, 12, 0.1);
+  --shadow-md: 0 4px 12px rgba(194, 65, 12, 0.15);
+  --shadow-lg: 0 12px 24px rgba(194, 65, 12, 0.2);
 }
 
 /* =================== 全局主题应用 =================== */
 * {
   /* 只保留颜色相关的过渡 */
   transition: background-color var(--transition-normal),
-              color var(--transition-normal);
+              color var(--transition-normal),
+              border-color var(--transition-normal);
 }
 
 body {
@@ -86,7 +101,7 @@ a {
 }
 
 a:hover {
-  color: var(--accent-info);
+  color: var(--accent-primary);
 }
 
 ::selection {
@@ -109,23 +124,25 @@ a:hover {
   justify-content: center;
   cursor: pointer;
   font-size: 20px;
-  transition: background-color var(--transition-fast);
+  transition: all var(--transition-fast);
   z-index: 999;
   box-shadow: var(--shadow-md);
 }
 
 .theme-switcher:hover {
   box-shadow: var(--shadow-lg);
-  border-color: var(--accent-primary);
+  border-color: var(--accent-info);
+  transform: scale(1.05);
 }
 
 [data-theme="dark"] .theme-switcher {
   background: var(--bg-secondary);
   border: 2px solid var(--border-primary);
+  color: var(--accent-info);
 }
 
 [data-theme="light"] .theme-switcher {
-  background: linear-gradient(135deg, #ff8fab, #52b788);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-warning));
   border: none;
   color: white;
 }
@@ -163,7 +180,7 @@ a:hover {
 /* 代码块 */
 .message-text code.inline-code {
   background: var(--bg-tertiary);
-  color: var(--accent-info);
+  color: var(--accent-warning);
   border: 1px solid var(--border-primary);
 }
 
@@ -174,8 +191,8 @@ a:hover {
 }
 
 [data-theme="light"] .message-text pre.code-block {
-  background: #f6f8fa;
-  color: #24292e;
+  background: #faf8f7;
+  color: #1f2937;
 }
 
 /* 思考过程 */
@@ -186,7 +203,7 @@ a:hover {
 }
 
 [data-theme="light"] .thinking-text pre {
-  background: #f8f4f0;
+  background: #f5f1ef;
 }
 
 /* Artifacts */
@@ -205,7 +222,7 @@ a:hover {
 }
 
 [data-theme="light"] .artifact-code {
-  background: #f8f4f0;
+  background: #f5f1ef;
 }
 
 /* 工具使用 */
@@ -232,6 +249,78 @@ a:hover {
   color: var(--text-link);
 }
 
+/* =================== Claude.ai 特色增强 =================== */
+
+/* 温暖的悬停效果 */
+.btn-primary:hover,
+.btn-secondary:hover,
+.timeline-content:hover {
+  box-shadow: 0 4px 12px rgba(68, 117, 165, 0.15);
+}
+
+/* 橙色强调的焦点状态 */
+.search-input:focus,
+.filter-input:focus,
+.filter-select:focus {
+  border-color: var(--accent-info);
+  box-shadow: 0 0 0 3px rgba(68, 117, 165, 0.1);
+}
+
+/* 温暖的渐变背景 */
+.platform-badge {
+  background: var(--gradient-primary);
+  color: white;
+}
+
+/* 分支切换器的蓝色主题 */
+.branch-switcher-main:hover {
+  border-color: var(--accent-info);
+}
+
+.branch-arrow:hover:not(.disabled) {
+  background: var(--accent-info);
+  border-color: var(--accent-info);
+}
+
+.branch-option.active {
+  background: var(--accent-info);
+  border-color: var(--accent-info);
+}
+
+/* 时间线的头像颜色 */
+.timeline-dot.human {
+  background: var(--avatar-human-bg);
+}
+
+.timeline-dot.assistant {
+  background: var(--avatar-ai-bg);
+}
+
+.timeline-avatar.human {
+  background: var(--avatar-human-bg);
+  border-color: var(--avatar-human-bg);
+  color: var(--avatar-human-text);
+}
+
+.timeline-avatar.assistant {
+  background: var(--avatar-ai-bg);
+  border-color: var(--avatar-ai-bg);
+  color: var(--avatar-ai-text);
+}
+
+/* 温暖的标签颜色 */
+.timeline-tag.completed {
+  background: var(--accent-info);
+}
+
+.timeline-tag.important {
+  background: var(--accent-warning);
+}
+
+.timeline-tag.deleted {
+  background: var(--accent-danger);
+}
+
 /* =================== 通用滚动条样式 =================== */
 ::-webkit-scrollbar {
   width: 8px;
@@ -248,7 +337,7 @@ a:hover {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-secondary);
+  background: var(--accent-info);
 }
 
 /* =================== 响应式主题调整 =================== */
@@ -267,9 +356,43 @@ a:hover {
   :root {
     --bg-primary: white;
     --text-primary: black;
+    --accent-primary: #ea580c;
+    --accent-info: #4475A5;
   }
   
   .theme-switcher {
     display: none;
+  }
+}
+
+/* =================== 无障碍增强 =================== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  :root {
+    --border-primary: var(--accent-info);
+    --text-secondary: var(--text-primary);
+  }
+}
+
+/* 遵循系统主题偏好 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg-primary: #F2F0E9;
+    --bg-secondary: #faf8f7;
+    --bg-tertiary: #f5f1ef;
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --accent-primary: #ea580c;
+    --accent-info: #4475A5;
+    --avatar-human-bg: #C2C0B6;
+    --avatar-human-text: #272725;
+    --avatar-ai-bg: #D97757;
+    --avatar-ai-text: white;
   }
 }
