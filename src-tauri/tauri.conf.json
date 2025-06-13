@@ -1,0 +1,35 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Lyra-exporter",
+  "version": "0.1.2",
+  "identifier": "io.github.yalums.claudeexporter",
+  "build": {
+    "frontendDist": "../build",
+    "devUrl": "http://localhost:3789",
+    "beforeDevCommand": "npm run dev:killport",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Lyra's Exporter",
+        "width": 1500,
+        "height": 890,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "app",
+    "publisher": "Lyra",
+    "category": "Utility",
+    "shortDescription": "Claude Chat Exporter",
+    "icon": ["icons/app_icon.png"]
+  }
+}

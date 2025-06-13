@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Lyra Exporter",
+  "name": "Claude聊天记录管理 | Lyra's Exporter",
+  "description": "Claude和Gemini聊天记录管理工具 - 整理、搜索和导出对话数据",
   "icons": [
     {
       "src": "favicon.ico",
@@ -10,12 +11,17 @@
     {
       "src": "logo1024.png",
       "type": "image/png",
-      "sizes": "1024x1024"
+      "sizes": "1024x1024",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "./",
   "display": "standalone",
   "theme_color": "#F9FAFB",
-  "background_color": "#ffffff"
-}
+  "background_color": "#ffffff",
+  "orientation": "any",
+  "scope": "./",
+  "lang": "zh-CN",
+  "categories": ["productivity", "utilities"],
+  "screenshots": []
 }

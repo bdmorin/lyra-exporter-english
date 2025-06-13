@@ -2,6 +2,7 @@
   "name": "claude-chat-exporter",
   "version": "0.2.0",
   "private": true,
+  "homepage": "https://Yalums.github.io/lyra-exporter",
   "main": "src/electron.js",
   "dependencies": {
     "electron-squirrel-startup": "^1.0.1",
@@ -19,6 +20,8 @@
     "start:local": "react-scripts start",
     "start:network": "cross-env HOST=0.0.0.0 PORT=3000 react-scripts start",
     "build": "react-scripts build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
     "electron": "electron-forge start",
     "electron-dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
     "package": "npm run build && electron-forge package",
@@ -55,6 +58,7 @@
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "electron": "36.3.1",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "wait-on": "^8.0.3"
