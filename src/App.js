@@ -123,6 +123,10 @@ function App() {
         (fileData?.views?.conversationList?.length || 0) : 
         (metadata.conversationCount || (fileData ? 1 : 0));
       
+      // 获取模型信息 - 优先从当前数据获取，再从元数据获取
+      // 对于 claude 格式，如果没有模型信息，使用空字符串让 getModelDisplay 处理为默认的 Sonnet
+      const model = fileData?.meta_info?.model || metadata.model || (format === 'claude' ? '' : 'Claude');
+      
       cards.push({
         type: 'file',
         uuid: generateFileCardUuid(fileIndex),
@@ -132,7 +136,7 @@ function App() {
         isCurrentFile,
         fileData,
         format,
-        model: metadata.model || 'Claude',
+        model, // 添加模型信息
         messageCount,
         conversationCount,
         created_at: metadata.created_at || (file.lastModified ? new Date(file.lastModified).toISOString() : null),
@@ -153,7 +157,7 @@ function App() {
     }
     
     return cards;
-  }, [files, currentFileIndex, processedData, viewMode, filteredConversations]);
+  }, [files, currentFileIndex, processedData, viewMode, filteredConversations, fileMetadata]);
 
   // 搜索功能 - 搜索卡片和消息
   const searchTarget = useMemo(() => {
@@ -486,6 +490,14 @@ function App() {
   useEffect(() => {
     const savedTheme = localStorage.getItem('app-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
+    
+    // 初始化PWA主题色
+    if (window.updatePWAThemeColor) {
+      // 稍微延迟，确保主题属性已经设置
+      setTimeout(() => {
+        window.updatePWAThemeColor();
+      }, 100);
+    }
   }, []);
 
   // 导出功能
@@ -811,7 +823,7 @@ function App() {
           <nav className="navbar-redesigned">
             <div className="navbar-left">
               <div className="logo">
-                <span className="logo-icon">🎵</span>
+                <span className="logo-icon">🐬</span>
                 <span className="logo-text">Lyra Exporter</span>
               </div>
               
@@ -844,15 +856,14 @@ function App() {
                 </div>
               )}
             </div>
-            
             <div className="navbar-right">
-              {/* 调试按钮 - 临时添加 */}
+              {/* 导出按钮*/}
               <button 
                 className="btn-secondary small"
-                onClick={debugMarksData}
-                title="调试标记数据"
+                onClick={() => setShowExportPanel(true)}
+                title="导出"
               >
-                🐛 调试
+                📤 导出
               </button>
             </div>
           </nav>
@@ -1071,15 +1082,6 @@ function App() {
               </div>
             </div>
           )}
-
-          {/* 浮动操作按钮 */}
-          <button 
-            className="fab"
-            onClick={() => setShowExportPanel(true)}
-            title="导出"
-          >
-            📤
-          </button>
           <ThemeSwitcher />
 
           {/* 导出面板 */}

@@ -89,6 +89,7 @@ const extractGeminiNotebookLMData = (jsonData, fileName) => {
     updated_at: now.toLocaleString('zh-CN'),
     project_uuid: "",
     uuid: `${platform.toLowerCase()}_${Date.now()}`,
+    model: platform, // 添加模型信息
     platform: platform.toLowerCase()
   };
 
@@ -152,12 +153,13 @@ const extractGeminiNotebookLMData = (jsonData, fileName) => {
   };
 };
 
-// 从Claude JSON数据中提取对话内容（保持原有逻辑）
+// 从Claude JSON数据中提取对话内容（修改以支持模型信息提取）
 const extractClaudeData = (jsonData) => {
   // 提取元数据
   const title = jsonData.name || "无标题对话";
   const createdAt = parseTimestamp(jsonData.created_at);
   const updatedAt = parseTimestamp(jsonData.updated_at);
+  const model = jsonData.model || ""; // 提取模型信息
 
   const metaInfo = {
     title,
@@ -165,6 +167,7 @@ const extractClaudeData = (jsonData) => {
     updated_at: updatedAt,
     project_uuid: jsonData.project_uuid || "",
     uuid: jsonData.uuid || "",
+    model: model, // 添加模型信息
     platform: 'claude'
   };
 
@@ -741,6 +744,7 @@ const extractClaudeConversationsData = (jsonData, fileName) => {
     updated_at: now.toLocaleString('zh-CN'),
     project_uuid: "",
     uuid: `claude_conversations_${Date.now()}`,
+    model: "Claude对话列表", // 添加模型信息
     platform: 'claude_conversations'
   };
 
@@ -835,6 +839,7 @@ const extractClaudeFullExportData = (jsonData, fileName) => {
     updated_at: exportedAt,
     project_uuid: "",
     uuid: `claude_full_export_${Date.now()}`,
+    model: "Claude完整导出", // 添加模型信息
     platform: 'claude_full_export',
     exportedAt: exportedAt,
     totalConversations: totalConversations

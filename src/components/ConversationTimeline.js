@@ -396,24 +396,24 @@ const ConversationTimeline = ({
 
   return (
     <div className={`universal-timeline-container ${platformClass} ${isDesktop ? 'desktop-layout' : 'mobile-layout'}`}>
-      {/* 文件切换预览 - 顶部 */}
-      {prevFilePreview && isDesktop && (
-        <div 
-          className="file-preview file-preview-top"
-          onClick={() => onFileSwitch && onFileSwitch(prevFilePreview.index)}
-        >
-          <div className="file-preview-inner">
-            <span className="file-preview-arrow">↑</span>
-            <span className="file-preview-name">{prevFilePreview.file.name}</span>
-            <span className="file-preview-hint">点击切换到上一个文件</span>
-          </div>
-        </div>
-      )}
-      
       {/* 内容区域 */}
       <div className="timeline-main-content">
         {/* 左侧时间线 */}
         <div className="timeline-left-panel">
+          {/* 文件切换预览 - 顶部 */}
+          {prevFilePreview && isDesktop && (
+            <div 
+              className="file-preview file-preview-top"
+              onClick={() => onFileSwitch && onFileSwitch(prevFilePreview.index)}
+            >
+              <div className="file-preview-inner">
+                <span className="file-preview-arrow">↑</span>
+                <span className="file-preview-name">{prevFilePreview.file.name}</span>
+                <span className="file-preview-hint">点击切换到上一个文件</span>
+              </div>
+            </div>
+          )}
+          
           {/* 对话信息卡片 */}
           {conversationInfo && (
             <div className="conversation-info-card">
@@ -622,6 +622,20 @@ const ConversationTimeline = ({
               );
             })}
           </div>
+          
+          {/* 文件切换预览 - 底部 */}
+          {nextFilePreview && isDesktop && (
+            <div 
+              className="file-preview file-preview-bottom"
+              onClick={() => onFileSwitch && onFileSwitch(nextFilePreview.index)}
+            >
+              <div className="file-preview-inner">
+                <span className="file-preview-arrow">↓</span>
+                <span className="file-preview-name">{nextFilePreview.file.name}</span>
+                <span className="file-preview-hint">点击切换到下一个文件</span>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* 右侧消息详情 - 仅PC端 */}
@@ -687,20 +701,6 @@ const ConversationTimeline = ({
           </div>
         )}
       </div>
-      
-      {/* 文件切换预览 - 底部 */}
-      {nextFilePreview && isDesktop && (
-        <div 
-          className="file-preview file-preview-bottom"
-          onClick={() => onFileSwitch && onFileSwitch(nextFilePreview.index)}
-        >
-          <div className="file-preview-inner">
-            <span className="file-preview-arrow">↓</span>
-            <span className="file-preview-name">{nextFilePreview.file.name}</span>
-            <span className="file-preview-hint">点击切换到下一个文件</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

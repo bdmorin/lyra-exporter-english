@@ -125,8 +125,7 @@ export const useFileManager = () => {
           conversationCount: data.format === 'claude_full_export' ? 
             (data.views?.conversationList?.length || 0) : 1,
           title: data.meta_info?.title || file.name,
-          model: data.meta_info?.model || 
-            (data.chat_history?.find(msg => msg.sender === 'assistant')?.sender_label || 'Claude'),
+          model: data.meta_info?.model || (data.format === 'claude' ? '' : 'Claude'), // 对 claude 格式使用空字符串
           created_at: data.meta_info?.created_at,
           updated_at: data.meta_info?.updated_at
         };
@@ -136,7 +135,8 @@ export const useFileManager = () => {
           format: 'unknown',
           messageCount: 0,
           conversationCount: 0,
-          title: file.name
+          title: file.name,
+          model: '' // 默认为空，让 getModelDisplay 处理
         };
       }
     }

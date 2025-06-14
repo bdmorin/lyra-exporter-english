@@ -14,7 +14,7 @@
 }
 
 .btn-primary {
-  background: var(--accent-secondary);
+  background: var(--accent-primary);  /* 改为橙色 */
   color: white;
 }
 

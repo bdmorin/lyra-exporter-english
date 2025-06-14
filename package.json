@@ -1,9 +1,13 @@
 {
-  "name": "claude-chat-exporter",
-  "version": "0.2.0",
+  "name": "lyra-exporter",
+  "version": "1.2.0",
   "private": true,
+  "description": "A handy tool for exporting chat conversations.",
+  "author": {
+    "name": "Yalums"
+  },
   "homepage": "https://Yalums.github.io/lyra-exporter",
-  "main": "src/electron.js",
+  "main": "electron.js",
   "dependencies": {
     "electron-squirrel-startup": "^1.0.1",
     "file-saver": "^2.0.5",
@@ -16,14 +20,14 @@
     "remark-gfm": "^3.0.1"
   },
   "scripts": {
-    "start": "cross-env HOST=0.0.0.0 react-scripts start",
-    "start:local": "react-scripts start",
-    "start:network": "cross-env HOST=0.0.0.0 PORT=3000 react-scripts start",
+    "start": "cross-env HOST=0.0.0.0 PORT=3789 react-scripts start",
+    "start:local": "cross-env PORT=3789 react-scripts start",
+    "start:network": "cross-env HOST=0.0.0.0 PORT=3789 react-scripts start",
     "build": "react-scripts build",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
     "electron": "electron-forge start",
-    "electron-dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3789 && electron .\"",
     "package": "npm run build && electron-forge package",
     "make": "npm run build && electron-forge make"
   },

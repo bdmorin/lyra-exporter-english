@@ -27,9 +27,38 @@ const ConversationGrid = ({
 
   const getModelDisplay = (model) => {
     if (!model || model === '未知模型') return 'Claude Sonnet';
-    if (model.includes('opus')) return 'Claude Opus';
-    if (model.includes('sonnet')) return 'Claude Sonnet';
-    if (model.includes('haiku')) return 'Claude Haiku';
+    
+    // 精确识别 Opus 版本
+    if (model.includes('opus-4') || model.includes('opus4')) {
+      return 'Claude Opus 4';
+    }
+    if (model.includes('claude-3-opus') || model.includes('opus-3') || model.includes('opus3')) {
+      return 'Claude Opus 3';
+    }
+    if (model.includes('opus')) {
+      return 'Claude Opus';
+    }
+    
+    // 识别 Sonnet 版本
+    if (model.includes('sonnet-4') || model.includes('sonnet4')) {
+      return 'Claude Sonnet 4';
+    }
+    if (model.includes('claude-3-sonnet') || model.includes('sonnet-3') || model.includes('sonnet3')) {
+      return 'Claude Sonnet 3';
+    }
+    if (model.includes('sonnet')) {
+      return 'Claude Sonnet';
+    }
+    
+    // 识别 Haiku 版本
+    if (model.includes('claude-3-haiku') || model.includes('haiku-3') || model.includes('haiku3')) {
+      return 'Claude Haiku 3';
+    }
+    if (model.includes('haiku')) {
+      return 'Claude Haiku';
+    }
+    
+    // 如果都不匹配，返回原始值
     return model;
   };
 
@@ -63,13 +92,21 @@ const ConversationGrid = ({
     }
   };
 
-  // 简化的第一行元信息
+  // 简化的第一行元信息 - 修改这里让单对话文件显示具体模型
   const getFirstMetaRow = (item) => {
     if (item.type === 'file') {
-      return {
-        icon: getTypeIcon(item),
-        text: getFileTypeDisplay(item.format)
-      };
+      // 对于单对话文件，显示具体模型；对于其他格式，显示格式类型
+      if (item.format === 'claude') {
+        return {
+          icon: getTypeIcon(item),
+          text: getModelDisplay(item.model)
+        };
+      } else {
+        return {
+          icon: getTypeIcon(item),
+          text: getFileTypeDisplay(item.format)
+        };
+      }
     } else {
       return {
         icon: '🤖',

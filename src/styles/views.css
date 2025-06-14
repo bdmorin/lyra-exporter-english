@@ -101,18 +101,6 @@
   border-color: var(--border-secondary);
 }
 
-/* 恢复当前文件/对话的顶部蓝色条 */
-.conversation-tile.current-file::before,
-.conversation-tile.selected::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--accent-primary);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-}
 
 /* 恢复当前文件/对话的边框效果 */
 .conversation-tile.current-file,
@@ -161,13 +149,13 @@
   filter: drop-shadow(0 0 2px rgba(241, 224, 90, 0.3));
 }
 
-/* 蓝色色调的关闭按钮 */
+/* 关闭按钮 */
 .file-close-btn {
   width: 20px;
   height: 20px;
   border: none;
-  background: var(--accent-primary);
-  color: white;
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;

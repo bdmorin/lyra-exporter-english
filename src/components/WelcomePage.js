@@ -95,7 +95,7 @@ const ScriptInstallGuide = () => {
               <div className="mt-4">
                 <button
                   onClick={copyScriptToClipboard}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-lg"
+                  className="w-full bg-[#D97706] hover:bg-[#bf6905] text-white py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-lg"
                 >
                   {copied ? (
                     <>
@@ -203,7 +203,7 @@ const FeatureCard = ({ icon, title, description, color }) => {
 const WelcomePage = ({ handleLoadClick }) => {
   // 模拟打字效果
   const [welcomeText, setWelcomeText] = useState("");
-  const fullText = "记录你与Claude的每一刻灵感与温度 - Lyra's Exporter";
+  const fullText = "记录你与Claude、Gemini的每一刻灵感与温度";
   
   useEffect(() => {
     let i = 0;
@@ -220,11 +220,13 @@ const WelcomePage = ({ handleLoadClick }) => {
   }, []);
 
   return (
-    // 重要修改：移除了 pt-4 并确保内容顶部无间距
-    <div className="welcome-page flex flex-col items-center w-full bg-gradient-to-b from-gray-50 to-white px-6 pb-6 overflow-auto scrollable hide-scrollbar non-selectable">
+    // 重要修改：移除了 pt-4 并确保内容顶部无间距，使用CSS变量而不是固定背景色
+    <div 
+      className="welcome-page flex flex-col items-center w-full px-6 pb-6 overflow-auto scrollable hide-scrollbar non-selectable"
+    >
       {/* 欢迎区 */}
       <div className="w-full max-w-4xl mt-8 mb-8 text-center">
-        <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600 mb-4">✨</div>
+        <div className="text-4xl font-bold text-[#D97706] mt-8 mb-4">Lyra's Exporter</div>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6 min-h-[60px]">
           {welcomeText}
         </h1>
@@ -237,11 +239,11 @@ const WelcomePage = ({ handleLoadClick }) => {
       {/* 添加合适的间距 */}
       <div className="flex justify-center mb-10">
         <button
-          className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xl font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center"
+          className="px-8 py-4 bg-white text-gray-800 text-lg font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center border border-gray-300 hover:bg-gray-200 hover:border-gray-400 transform hover:scale-105"
           onClick={handleLoadClick}
         >
-          <FileText className="mr-3 h-6 w-6" />
-          点这里开始加载JSON对话数据吧 ✨
+          <FileText className="mr-3 h-5 w-5" />
+          Load the JSON
         </button>
       </div>
       
@@ -251,28 +253,25 @@ const WelcomePage = ({ handleLoadClick }) => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <FeatureCard 
-            icon={<Heart className="h-5 w-5" />}
+            
             title="重点标记"
             description="标记那些特别有价值的回应，方便日后查找。当Claude提供了精彩见解，一键保存这份思考。"
             color="blue"
           />
           
           <FeatureCard 
-            icon={<MessageCircle className="h-5 w-5" />}
             title="思考过程查看"
             description="查看Claude的思考过程，了解它如何一步步形成回答。看到问题分析和推理的全过程。"
             color="purple"
           />
           
           <FeatureCard 
-            icon={<BookOpen className="h-5 w-5" />}
             title="时间轴回溯"
             description="在时间轴上回顾你们的交流历程，从最初的问题到深度讨论，轻松找到任何时期的对话。"
             color="green"
           />
           
           <FeatureCard 
-            icon={<Tag className="h-5 w-5" />}
             title="主题分类"
             description="使用标签系统整理对话，轻松找到关于特定主题的所有讨论，建立个人知识库。"
             color="blue"
@@ -331,6 +330,167 @@ const WelcomePage = ({ handleLoadClick }) => {
           .welcome-page {
             margin-top: 0;
             padding-top: 0;
+            /* 使用主题背景色变量 */
+            background-color: var(--bg-primary);
+            /* 确保欢迎页面背景色跟随主题变化 */
+            transition: background-color var(--transition-normal, 0.3s ease);
+          }
+          
+          /* 为欢迎页面的文本元素添加主题支持 */
+          .welcome-page h1 {
+            color: var(--text-primary, #1f2937);
+          }
+          
+          .welcome-page p {
+            color: var(--text-secondary, #4b5563);
+          }
+          
+          .welcome-page .text-gray-500 {
+            color: var(--text-tertiary, #6b7280) !important;
+          }
+          
+          .welcome-page .text-gray-600 {
+            color: var(--text-secondary, #4b5563) !important;
+          }
+          
+          .welcome-page .text-gray-700 {
+            color: var(--text-secondary, #4b5563) !important;
+          }
+          
+          .welcome-page .text-gray-800 {
+            color: var(--text-primary, #1f2937) !important;
+          }
+          
+          /* 为卡片添加主题背景 */
+          .welcome-page .bg-white {
+            background-color: var(--bg-secondary, #ffffff) !important;
+            border-color: var(--border-primary, #e7e2df) !important;
+            /* 深色模式下的柔和阴影 */
+            box-shadow: var(--shadow-sm) !important;
+          }
+          
+          .welcome-page .bg-gray-50 {
+            background-color: var(--bg-tertiary, #f5f1ef) !important;
+            border-color: var(--border-secondary, #d6ccc6) !important;
+          }
+          
+          /* 功能卡片背景色适配 */
+          .welcome-page .bg-blue-50 {
+            background-color: var(--bg-tertiary, #f5f1ef) !important;
+            border-color: var(--border-primary, #e7e2df) !important;
+          }
+          
+          .welcome-page .bg-purple-50 {
+            background-color: var(--bg-tertiary, #f5f1ef) !important;
+            border-color: var(--border-primary, #e7e2df) !important;
+          }
+          
+          .welcome-page .bg-green-50 {
+            background-color: var(--bg-tertiary, #f5f1ef) !important;
+            border-color: var(--border-primary, #e7e2df) !important;
+          }
+          
+          /* 边框颜色统一 */
+          .welcome-page .border-gray-200 {
+            border-color: var(--border-primary, #e7e2df) !important;
+          }
+          
+          .welcome-page .border-gray-100 {
+            border-color: var(--border-secondary, #d6ccc6) !important;
+          }
+          
+          .welcome-page .border-blue-100 {
+            border-color: var(--border-primary, #e7e2df) !important;
+          }
+          
+          .welcome-page .border-purple-100 {
+            border-color: var(--border-primary, #e7e2df) !important;
+          }
+          
+          .welcome-page .border-green-100 {
+            border-color: var(--border-primary, #e7e2df) !important;
+          }
+          
+          /* 功能卡片图标背景适配 */
+          .welcome-page .bg-blue-100 {
+            background-color: var(--accent-primary, #ea580c) !important;
+            color: white !important;
+          }
+          
+          .welcome-page .bg-purple-100 {
+            background-color: var(--accent-primary, #ea580c) !important;
+            color: white !important;
+          }
+          
+          .welcome-page .bg-green-100 {
+            background-color: var(--accent-primary, #ea580c) !important;
+            color: white !important;
+          }
+          
+          .welcome-page .bg-gray-100 {
+            background-color: var(--accent-secondary, #C2C0B6) !important;
+            color: var(--text-primary, #1f2937) !important;
+          }
+          
+          /* 图标颜色适配 */
+          .welcome-page .text-blue-600 {
+            color: var(--accent-primary, #ea580c) !important;
+          }
+          
+          .welcome-page .text-purple-600 {
+            color: var(--accent-primary, #ea580c) !important;
+          }
+          
+          .welcome-page .text-green-600 {
+            color: var(--accent-primary, #ea580c) !important;
+          }
+          
+          .welcome-page .text-gray-600 {
+            color: var(--text-secondary, #4b5563) !important;
+          }
+          
+          /* 标题颜色适配 */
+          .welcome-page .text-blue-700 {
+            color: var(--text-primary, #1f2937) !important;
+          }
+          
+          .welcome-page .text-purple-700 {
+            color: var(--text-primary, #1f2937) !important;
+          }
+          
+          .welcome-page .text-green-700 {
+            color: var(--text-primary, #1f2937) !important;
+          }
+          
+          /* 渐变按钮保持原有效果 */
+          .welcome-page .bg-gradient-to-r {
+            /* 保持原有的渐变效果，不需要主题适配 */
+          }
+          
+          /* 深色模式下的特殊处理 */
+          [data-theme="dark"] .welcome-page .shadow-md {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+          }
+          
+          [data-theme="dark"] .welcome-page .shadow-lg {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4) !important;
+          }
+          
+          [data-theme="dark"] .welcome-page .shadow-sm {
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+          }
+          
+          /* 浅色模式下的柔和阴影 */
+          [data-theme="light"] .welcome-page .shadow-md {
+            box-shadow: 0 4px 12px rgba(194, 65, 12, 0.08) !important;
+          }
+          
+          [data-theme="light"] .welcome-page .shadow-lg {
+            box-shadow: 0 12px 24px rgba(194, 65, 12, 0.12) !important;
+          }
+          
+          [data-theme="light"] .welcome-page .shadow-sm {
+            box-shadow: 0 1px 3px rgba(194, 65, 12, 0.05) !important;
           }
         `}
       </style>

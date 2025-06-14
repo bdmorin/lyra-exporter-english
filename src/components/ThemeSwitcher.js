@@ -11,6 +11,14 @@ const ThemeSwitcher = () => {
     // 应用主题
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('app-theme', theme);
+    
+    // 更新PWA主题色（状态栏颜色）
+    if (window.updatePWAThemeColor) {
+      // 稍微延迟一下，确保ata-theme属性已经设置
+      setTimeout(() => {
+        window.updatePWAThemeColor();
+      }, 50);
+    }
   }, [theme]);
 
   const toggleTheme = () => {
