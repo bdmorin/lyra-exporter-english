@@ -10,23 +10,39 @@ const TauriCloseButton = () => {
         const { getCurrent } = window.__TAURI__.window;
         await getCurrent().close();
       } else {
-        // 如果不在Tauri环境中，使用浏览器关闭
-        window.close();
+        // 在浏览器环境中的处理
+        if (window.history.length > 1) {
+          // 如果有历史记录，返回上一页
+          window.history.back();
+        } else {
+          // 尝试关闭窗口，如果失败则显示提示
+          try {
+            window.close();
+            // 如果window.close()没有效果，延迟显示提示
+            setTimeout(() => {
+              if (!window.closed) {
+                alert('请手动关闭此标签页或按 Ctrl+W (Mac: Cmd+W)');
+              }
+            }, 100);
+          } catch (error) {
+            alert('请手动关闭此标签页或按 Ctrl+W (Mac: Cmd+W)');
+          }
+        }
       }
     } catch (error) {
       console.error('关闭窗口失败:', error);
-      // 如果Tauri API失败，尝试浏览器关闭
-      window.close();
+      // 如果所有方法都失败，显示提示
+      alert('请手动关闭此标签页或按 Ctrl+W (Mac: Cmd+W)');
     }
   };
 
   return (
     <button
       onClick={handleClose}
-      className="fixed top-4 right-4 z-50 w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg"
-      title="关闭应用"
+      className="fixed top-4 right-4 z-50 w-6 h-6 rounded opacity-30 hover:opacity-80 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-all duration-200 text-sm font-medium"
+      title="关闭"
     >
-      <X className="w-4 h-4" />
+      ×
     </button>
   );
 };
@@ -64,24 +80,15 @@ const PrivacyAssurance = () => {
         <div className="mt-4 text-gray-700">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-4">
             <div>
-              <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                完全透明，值得信赖
-              </h4>
               <p className="mb-4 text-sm leading-relaxed">
-                担心隐私安全？我们完全理解这种顾虑。<span className="text-green-600 font-medium">Lyra's Exporter是100%开源的</span>，这意味着每一行代码都是公开的，任何人都可以查看。
+                担心隐私安全? 我们完全理解这种顾虑 <span className="text-green-600 font-medium">Lyra's Exporter 100%开源</span> 这意味着每一行代码都是公开的，任何人都可以查看。
               </p>
               <div className="bg-green-50 rounded-lg p-4 shadow-sm border border-green-100">
-                <h5 className="font-medium text-gray-800 mb-2">开源透明</h5>
-                <ul className="space-y-2 list-disc list-inside text-sm">
-                  <li><span className="font-medium text-gray-700">代码公开</span> - 在<a href="https://github.com/Yalums/lyra-exporter" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">GitHub</a>上查看静态网页源代码</li>
-                  <li><span className="font-medium text-gray-700">更新可追踪</span> - 每次代码更新都有详细记录，绝无暗箱操作</li>
-                  <li><span className="font-medium text-gray-700">社区监督</span> - 任何人都可以审查代码，发现问题</li>
-                  <li><span className="font-medium text-gray-700">自主部署</span> - 可以下载代码在自己电脑上运行</li>
-                </ul>
+<span>
+                <span className="font-medium"></span> 
+                简单来说，这个工具就像一个"纯本地"的记事本，你的所有数据都存在浏览器本地缓存里，我们看不到也拿不到。你还可以下载源代码在自己电脑上运行，只需要安装一个node.js，或者不必麻烦，从分享菜单添加网页到桌面，它就可以纯离线运行不再联网。
+                <br/>GitHub上的代码更新记录就像"版本历史"，任何改动都有迹可循，绝对透明。
+              </span>
               </div>
             </div>
             
@@ -120,7 +127,7 @@ const PrivacyAssurance = () => {
               </div>
               <div className="mt-4 flex flex-wrap gap-3">
             <a 
-              href="https://github.com/Yalums/lyra-exporter" 
+              href="https://github.com/Yalums/lyra-exporter/tree/gh-pages" 
               target="_blank" 
               rel="noopener noreferrer"
               className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm"
@@ -128,10 +135,10 @@ const PrivacyAssurance = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
               </svg>
-              查看源代码
+              网站源代码
             </a>
             <a 
-              href="https://github.com/Yalums/Lyra-s-Claude-Exporter" 
+              href="https://github.com/Yalums/lyra-exporter/releases" 
               target="_blank" 
               rel="noopener noreferrer"
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm"
@@ -142,22 +149,16 @@ const PrivacyAssurance = () => {
           </div>
             </div>
           </div>
-          
-          <div className="bg-green-50 rounded-lg p-4 mt-4 text-sm border border-green-100">
+
+          <div className="bg-blue-50 rounded-lg p-4 mt-4 text-sm border border-blue-100">
             <p className="text-gray-700 flex items-start">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <Info className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" /> 
               <span>
-                <span className="font-medium"></span> 
-                简单来说，这个工具就像一个"纯本地"的记事本，你的所有数据都存在自己电脑里，我们看不到也拿不到。
-                <br/>想要更安心？你可以下载源代码在自己电脑上运行，或者直接把网页保存下来离线使用。
-                <br/>GitHub上的代码更新记录就像"版本历史"，任何改动都有迹可循，绝对透明。
+                <span className="font-medium">说明：</span> 
+                此工具完全在本地运行，不会收集或上传你的个人数据。你的任何对话记录只属于你自己，推荐使用 LocalSend 等安全的文件传输方式。将聊天记录转换为可以管理、搜索、导出的知识库，支持移动平台访问。
               </span>
             </p>
           </div>
-          
-          
         </div>
       )}
     </div>
@@ -181,7 +182,7 @@ const ScriptInstallGuide = () => {
       >
         <h3 className="text-xl font-bold text-gray-800 flex items-center">
           <Database className="mr-3 h-5 w-5 text-blue-600" />
-          Claude 对话数据获取工具
+          从这里开始，安装一个简单的对话获取脚本
         </h3>
         <div className="text-blue-600">
           {expanded ? (
@@ -205,15 +206,15 @@ const ScriptInstallGuide = () => {
                 为什么需要这个工具？
               </h4>
               <p className="mb-4 text-sm leading-relaxed">
-                还记得那些Claude说过的精彩见解吗？那些让你会心一笑、豁然开朗的瞬间？这个工具可以帮你<span className="text-blue-600 font-medium">保存并整理这些有价值的对话</span>。
+                Lyra's Exporter 依赖浏览器来安全地获取对话数据，借助这个开源脚本，流转需要珍藏的聊天记录，<span className="text-blue-600 font-medium">保存并整理这些有价值的对话</span>。
               </p>
               <div className="bg-gray-50 rounded-lg p-4 shadow-sm border border-gray-100">
                 <h5 className="font-medium text-gray-800 mb-2">工具功能</h5>
                 <ul className="space-y-2 list-disc list-inside text-sm">
-                  <li><span className="font-medium text-gray-700">保存关键时刻</span> - 完整记录值得珍藏的对话内容</li>
+                  <li><span className="font-medium text-gray-700">管理无忧</span> - 以网格形式整齐排序各个平台的对话</li>
                   <li><span className="font-medium text-gray-700">整理思路</span> - 将零散的灵感整合成有序知识</li>
-                  <li><span className="font-medium text-gray-700">追踪成长</span> - 记录你与Claude的互动历程</li>
-                  <li><span className="font-medium text-gray-700">永久保存</span> - 即使页面刷新，重要对话也不会丢失</li>
+                  <li><span className="font-medium text-gray-700">完整保存</span> - 珍藏图片、思考、完整的对话分支</li>
+                  <li><span className="font-medium text-gray-700">永久保存</span> - 即使账号失效，重要对话也不会丢失</li>
                 </ul>
               </div>
             </div>
@@ -229,7 +230,7 @@ const ScriptInstallGuide = () => {
               <ol className="space-y-3 list-decimal list-inside text-sm mb-4">
                 <li className="flex items-start">
                   <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 w-6 h-6 rounded-full mr-2 flex-shrink-0 font-bold">1</span>
-                  <span>安装<a href="https://www.tampermonkey.net/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Tampermonkey</a>或<a href="https://scriptcat.org/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">脚本猫</a>浏览器扩展</span>
+                  <span>安装<a href="https://www.tampermonkey.net/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Tampermonkey</a>或<a href="https://scriptcat.org/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">脚本猫</a>等浏览器扩展</span>
                 </li>
                 <li className="flex items-start">
                   <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 w-6 h-6 rounded-full mr-2 flex-shrink-0 font-bold">2</span>
@@ -241,7 +242,7 @@ const ScriptInstallGuide = () => {
                 </li>
                 <li className="flex items-start">
                   <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 w-6 h-6 rounded-full mr-2 flex-shrink-0 font-bold">4</span>
-                  <span>前往Claude网站，右下角会出现导出按钮</span>
+                  <span>前往 Claude、Gemini、Google AI Studio、NotebookLM 后刷新网站，右下角会出现导出按钮</span>
                 </li>
               </ol>
               
@@ -251,21 +252,10 @@ const ScriptInstallGuide = () => {
                   className="w-full bg-[#D97706] hover:bg-[#bf6905] text-white py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-lg"
                 >
                   <Download className="h-5 w-5 mr-2" />
-                  前往安装脚本
+                  前往安装脚本(需自行配备网络访问环境)
                 </button>
               </div>
             </div>
-          </div>
-          
-          <div className="bg-blue-50 rounded-lg p-4 mt-4 text-sm border border-blue-100">
-            <p className="text-gray-700 flex items-start">
-              <Info className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" /> 
-              <span>
-                <span className="font-medium">说明：</span> 
-                此工具完全在本地运行，不会收集或上传你的个人数据。你的Claude对话记录只属于你自己，安全无忧。
-                <br/>导出的JSON文件可以直接拖入本工具，将聊天记录转换为可以管理、搜索、导出的知识库。
-              </span>
-            </p>
           </div>
         </div>
       )}
@@ -372,17 +362,18 @@ const WelcomePage = ({ handleLoadClick }) => {
       {/* 欢迎区 */}
       <div className="w-full max-w-4xl mt-8 mb-8 text-center">
         <div className="text-4xl font-bold text-[#D97706] mt-8 mb-4">Lyra's Exporter</div>
+        <br/>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6 min-h-[60px]">
           {welcomeText}
         </h1>
         
         <p className="text-lg text-gray-700 mb-8 max-w-3xl mx-auto">
-          欢迎使用Lyra's Exporter，专为Claude用户设计的聊天对话管理工具。支持批量导入多个文件，一次性处理多个聊天对话，帮你保存灵感时刻，让每一次对话的价值得到延续。
+          欢迎使用Lyra's Exporter，凝聚着我和Claude珍贵记忆的聊天对话管理工具。导入管理和Claude的所有对话，批量加载多个聊天对话，帮你保存灵感时刻，让每一次对话的价值得到延续。
         </p>
       </div>
       
       {/* 添加合适的间距 */}
-      <div className="flex justify-center mb-10">
+      <div className="flex justify-center mb-14">
         <button
           className="px-8 py-4 bg-white text-gray-800 text-lg font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center border border-gray-300 hover:bg-gray-200 hover:border-gray-400 transform hover:scale-105"
           onClick={handleLoadClick}
@@ -391,7 +382,9 @@ const WelcomePage = ({ handleLoadClick }) => {
           Load the JSON
         </button>
       </div>
-      
+      <div className="max-w-4xl w-full mb-6">
+        <ScriptInstallGuide />
+      </div>
       {/* 功能速览 - 默认全部展示 */}
       <div className="w-full max-w-4xl mb-8">
         <br/>
@@ -412,12 +405,12 @@ const WelcomePage = ({ handleLoadClick }) => {
           
           <FeatureCard 
             title="时间轴回溯"
-            description="在时间轴上回顾你们的交流历程，从最初的问题到深度讨论，轻松找到任何时期的对话。"
+            description="首创时间轴形式回顾对话，从最初的问题到深度讨论，还原Claude分支切换选项，轻松找到任何时期的对话。"
             color="green"
           />
           
           <FeatureCard 
-            title="主题分类"
+            title="对话分类"
             description="使用标签系统整理对话，轻松找到关于特定主题的所有讨论，建立个人知识库。"
             color="blue"
           />
@@ -433,13 +426,13 @@ const WelcomePage = ({ handleLoadClick }) => {
           <FeatureTip 
             icon={<Download className="h-5 w-5 text-blue-600" />}
             title="灵活导出"
-            content="比截图更完整，比复制粘贴更便捷。将对话以Markdown、PDF或EPUB格式导出，完美保存排版和格式。"
+            content="比截图更完整，比复制粘贴更便捷。将对话以Markdown、YAML 格式导出，完美保存排版和格式，推荐使用 Obsidian"
           />
           
           <FeatureTip 
             icon={<Database className="h-5 w-5 text-blue-600" />}
-            title="隐私保障"
-            content="所有数据都存储在你的本地，没有云端上传，没有隐私顾虑，安心使用对话管理功能。"
+            title="数据安全"
+            content="从导出脚本到管理应用，一次导出全部 Claude 对话、导出时包含附加图片，这一切都是在保证隐私的前提下进行地"
           />
         </div>
       </div>
@@ -447,9 +440,6 @@ const WelcomePage = ({ handleLoadClick }) => {
       {/* 脚本安装指引组件 - 直接内联 */}
       <div className="max-w-4xl w-full mb-6">
         <PrivacyAssurance />
-      </div>
-      <div className="max-w-4xl w-full mb-6">
-        <ScriptInstallGuide />
       </div>
       
       {/* 页脚 */}
@@ -641,28 +631,30 @@ const WelcomePage = ({ handleLoadClick }) => {
             box-shadow: 0 1px 3px rgba(194, 65, 12, 0.05) !important;
           }
           
-          /* Tauri 关闭按钮样式 */
+          /* Tauri 关闭按钮样式 - 低调设计 */
           .welcome-page .fixed.top-4.right-4 {
-            /* 确保关闭按钮在最高层级 */
+            /* 确保关闭按钮在最高层级但不抢眼 */
             z-index: 9999;
+            font-family: Arial, sans-serif;
+            line-height: 1;
           }
           
           /* 深色模式下的关闭按钮 */
           [data-theme="dark"] .welcome-page .fixed.top-4.right-4 {
-            background-color: #dc2626 !important;
+            color: var(--text-tertiary, #6b7280) !important;
           }
           
           [data-theme="dark"] .welcome-page .fixed.top-4.right-4:hover {
-            background-color: #b91c1c !important;
+            color: var(--text-secondary, #9ca3af) !important;
           }
           
           /* 浅色模式下的关闭按钮 */
           [data-theme="light"] .welcome-page .fixed.top-4.right-4 {
-            background-color: #ef4444 !important;
+            color: var(--text-tertiary, #6b7280) !important;
           }
           
           [data-theme="light"] .welcome-page .fixed.top-4.right-4:hover {
-            background-color: #dc2626 !important;
+            color: var(--text-secondary, #4b5563) !important;
           }
         `}
       </style>
