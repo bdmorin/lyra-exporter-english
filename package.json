@@ -7,9 +7,7 @@
     "name": "Yalums"
   },
   "homepage": "https://Yalums.github.io/lyra-exporter",
-  "main": "electron.js",
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.1",
     "file-saver": "^2.0.5",
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",
@@ -26,10 +24,9 @@
     "build": "react-scripts build",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
-    "electron": "electron-forge start",
-    "electron-dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3789 && electron .\"",
-    "package": "npm run build && electron-forge package",
-    "make": "npm run build && electron-forge make"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "eslintConfig": {
     "extends": [
@@ -49,19 +46,12 @@
     ]
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.8.1",
-    "@electron-forge/maker-deb": "^7.8.1",
-    "@electron-forge/maker-rpm": "^7.8.1",
-    "@electron-forge/maker-squirrel": "^7.8.1",
-    "@electron-forge/maker-zip": "^7.8.1",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.8.1",
-    "@electron-forge/plugin-fuses": "^7.8.1",
-    "@electron/fuses": "^1.8.0",
     "@tailwindcss/postcss": "^4.1.7",
+    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/cli": "^2.5.0",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
-    "electron": "36.3.1",
     "gh-pages": "^6.3.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",

@@ -1,5 +1,5 @@
 // utils/fileParser.js
-// 文件解析相关功能
+// 文件解析相关功能 - 更新版，支持新的Gemini/NotebookLM格式
 
 // 解析时间戳
 export const parseTimestamp = (timestampStr) => {
@@ -28,16 +28,27 @@ export const parseTimestamp = (timestampStr) => {
   }
 };
 
+// 新增：格式化文件大小的辅助函数
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 // 检测JSON文件格式
 export const detectFileFormat = (jsonData) => {
-  // Gemini/NotebookLM格式 - 直接是数组，元素包含human和assistant
+  // 新的Gemini/NotebookLM格式 - 包含title, platform, exportedAt, conversation字段的对象
+  if (typeof jsonData === 'object' && jsonData !== null && 
+      jsonData.title && jsonData.platform && jsonData.exportedAt && 
+      jsonData.conversation && Array.isArray(jsonData.conversation)) {
+    return 'gemini_notebooklm';
+  }
+  
+  // Claude全部对话格式 - 数组包含对话摘要
   if (Array.isArray(jsonData) && jsonData.length > 0) {
     const firstItem = jsonData[0];
-    if (firstItem && typeof firstItem === 'object' && 
-        ('human' in firstItem || 'assistant' in firstItem)) {
-      return 'gemini_notebooklm';
-    }
-    // Claude全部对话格式 - 数组包含对话摘要
     if (firstItem && typeof firstItem === 'object' && 
         'uuid' in firstItem && 'created_at' in firstItem && 
         'model' in firstItem && 'name' in firstItem) {
@@ -77,70 +88,194 @@ export const extractChatData = (jsonData, fileName = '') => {
   }
 };
 
-// 解析Gemini/NotebookLM格式
+// 解析新版Gemini/NotebookLM格式 (支持title等元数据和Base64图片)
 const extractGeminiNotebookLMData = (jsonData, fileName) => {
-  const now = new Date();
-  const platform = fileName.toLowerCase().includes('gemini') ? 'Gemini' : 
-                   fileName.toLowerCase().includes('notebooklm') ? 'NotebookLM' : 'AI';
+  // 从JSON中提取元数据
+  const title = jsonData.title || 'AI对话记录';
+  const platform = jsonData.platform || 'AI';
+  const exportedAt = jsonData.exportedAt ? parseTimestamp(jsonData.exportedAt) : new Date().toLocaleString('zh-CN');
+  
+  // 确定平台显示名称
+  const platformName = platform === 'gemini' ? 'Gemini' : 
+                      platform === 'notebooklm' ? 'NotebookLM' :
+                      platform === 'aistudio' ? 'Google AI Studio' : // 新增对AI Studio的支持
+                      platform.charAt(0).toUpperCase() + platform.slice(1);
   
   const metaInfo = {
-    title: `${platform}对话记录`,
-    created_at: now.toLocaleString('zh-CN'),
-    updated_at: now.toLocaleString('zh-CN'),
+    title: title,
+    created_at: exportedAt,
+    updated_at: exportedAt,
     project_uuid: "",
     uuid: `${platform.toLowerCase()}_${Date.now()}`,
-    model: platform, // 添加模型信息
-    platform: platform.toLowerCase()
+    model: platformName,
+    platform: platform.toLowerCase(),
+    has_embedded_images: false, // 初始化，后面会更新
+    totalImagesProcessed: 0
   };
 
   const chatHistory = [];
   let messageIndex = 0;
 
-  jsonData.forEach((item, itemIndex) => {
-    // 处理人类消息
-    if (item.human && item.human.trim()) {
-      const humanMessage = {
-        index: messageIndex++,
-        uuid: `human_${itemIndex}`,
-        parent_uuid: messageIndex > 1 ? `assistant_${itemIndex - 1}` : "",
-        sender: "human",
-        sender_label: "人类",
-        timestamp: now.toLocaleString('zh-CN'),
-        content_items: [],
-        raw_text: item.human,
-        display_text: item.human,
-        thinking: "",
-        tools: [],
-        artifacts: [],
-        citations: [],
-        branch_id: null,
-        is_branch_point: false,
-        branch_level: 0
-      };
-      chatHistory.push(humanMessage);
+  // 处理conversation数组
+  jsonData.conversation.forEach((item, itemIndex) => {
+    // --- 处理人类消息 ---
+    if (item.human) {
+      // 支持对象格式和字符串格式
+      const humanContent = typeof item.human === 'string' ? { text: item.human, images: [] } : item.human;
+      
+      if (humanContent.text || (humanContent.images && humanContent.images.length > 0)) {
+        const humanMessage = {
+          index: messageIndex++,
+          uuid: `human_${itemIndex}`,
+          parent_uuid: messageIndex > 1 ? `assistant_${itemIndex - 1}` : "",
+          sender: "human",
+          sender_label: "人类",
+          timestamp: exportedAt,
+          content_items: [],
+          raw_text: humanContent.text || '',
+          display_text: humanContent.text || '',
+          thinking: "",
+          tools: [],
+          artifacts: [],
+          citations: [],
+          images: [], // 初始化图片数组
+          branch_id: null,
+          is_branch_point: false,
+          branch_level: 0
+        };
+
+        // 处理图片 - 支持Base64格式
+        if (humanContent.images && humanContent.images.length > 0) {
+          metaInfo.has_embedded_images = true;
+          humanContent.images.forEach((imgData, imgIndex) => {
+            metaInfo.totalImagesProcessed++;
+            
+            // 处理不同的图片数据格式
+            let imageInfo;
+            if (typeof imgData === 'string') {
+              // 直接是Base64字符串
+              imageInfo = {
+                index: humanMessage.images.length,
+                file_name: `${platform}_image_${itemIndex}_${imgIndex}`,
+                file_type: imgData.startsWith('data:image/') ? 
+                  imgData.split(';')[0].replace('data:', '') : 'image/png',
+                display_mode: 'base64',
+                embedded_image: {
+                  data: imgData,
+                  size: 0, // Base64字符串大小计算复杂，暂设为0
+                }
+              };
+            } else if (typeof imgData === 'object') {
+              // 对象格式，包含format、data等字段
+              imageInfo = {
+                index: humanMessage.images.length,
+                file_name: `${platform}_image_${itemIndex}_${imgIndex}`,
+                file_type: imgData.format || 'image/png',
+                display_mode: 'base64',
+                embedded_image: {
+                  data: `data:${imgData.format || 'image/png'};base64,${imgData.data}`,
+                  size: imgData.size || 0,
+                },
+                original_src: imgData.original_src
+              };
+            }
+            
+            if (imageInfo) {
+              humanMessage.images.push(imageInfo);
+            }
+          });
+          
+          // 在文本前加上图片标记，方便预览
+          if (humanMessage.images.length > 0) {
+            const imageMarkdown = humanMessage.images
+              .map((img, idx) => `[图片${idx + 1}]`)
+              .join(' ');
+            humanMessage.display_text = `${imageMarkdown}\n\n${humanMessage.display_text}`.trim();
+          }
+        }
+        
+        chatHistory.push(humanMessage);
+      }
     }
 
-    // 处理AI助手消息
-    if (item.assistant && item.assistant.trim()) {
-      const assistantMessage = {
-        index: messageIndex++,
-        uuid: `assistant_${itemIndex}`,
-        parent_uuid: `human_${itemIndex}`,
-        sender: "assistant",
-        sender_label: platform,
-        timestamp: now.toLocaleString('zh-CN'),
-        content_items: [],
-        raw_text: item.assistant,
-        display_text: item.assistant,
-        thinking: "",
-        tools: [],
-        artifacts: [],
-        citations: [],
-        branch_id: null,
-        is_branch_point: false,
-        branch_level: 0
-      };
-      chatHistory.push(assistantMessage);
+    // --- 处理AI助手消息 ---
+    if (item.assistant) {
+      // 支持对象格式和字符串格式
+      const assistantContent = typeof item.assistant === 'string' ? { text: item.assistant, images: [] } : item.assistant;
+
+      if (assistantContent.text || (assistantContent.images && assistantContent.images.length > 0)) {
+        const assistantMessage = {
+          index: messageIndex++,
+          uuid: `assistant_${itemIndex}`,
+          parent_uuid: `human_${itemIndex}`,
+          sender: "assistant",
+          sender_label: platformName,
+          timestamp: exportedAt,
+          content_items: [],
+          raw_text: assistantContent.text || '',
+          display_text: assistantContent.text || '',
+          thinking: "",
+          tools: [],
+          artifacts: [],
+          citations: [],
+          images: [], // 初始化图片数组
+          branch_id: null,
+          is_branch_point: false,
+          branch_level: 0
+        };
+
+        // 处理图片 - 支持Base64格式
+        if (assistantContent.images && assistantContent.images.length > 0) {
+          metaInfo.has_embedded_images = true;
+          assistantContent.images.forEach((imgData, imgIndex) => {
+            metaInfo.totalImagesProcessed++;
+            
+            // 处理不同的图片数据格式
+            let imageInfo;
+            if (typeof imgData === 'string') {
+              // 直接是Base64字符串
+              imageInfo = {
+                index: assistantMessage.images.length,
+                file_name: `${platform}_image_${itemIndex}_${imgIndex}`,
+                file_type: imgData.startsWith('data:image/') ? 
+                  imgData.split(';')[0].replace('data:', '') : 'image/png',
+                display_mode: 'base64',
+                embedded_image: {
+                  data: imgData,
+                  size: 0,
+                }
+              };
+            } else if (typeof imgData === 'object') {
+              // 对象格式
+              imageInfo = {
+                index: assistantMessage.images.length,
+                file_name: `${platform}_image_${itemIndex}_${imgIndex}`,
+                file_type: imgData.format || 'image/png',
+                display_mode: 'base64',
+                embedded_image: {
+                  data: `data:${imgData.format || 'image/png'};base64,${imgData.data}`,
+                  size: imgData.size || 0,
+                },
+                original_src: imgData.original_src
+              };
+            }
+            
+            if (imageInfo) {
+              assistantMessage.images.push(imageInfo);
+            }
+          });
+          
+          // 在文本前加上图片标记
+          if (assistantMessage.images.length > 0) {
+            const imageMarkdown = assistantMessage.images
+              .map((img, idx) => `[图片${idx + 1}]`)
+              .join(' ');
+            assistantMessage.display_text = `${imageMarkdown}\n\n${assistantMessage.display_text}`.trim();
+          }
+        }
+        
+        chatHistory.push(assistantMessage);
+      }
     }
   });
 
@@ -153,7 +288,7 @@ const extractGeminiNotebookLMData = (jsonData, fileName) => {
   };
 };
 
-// 从Claude JSON数据中提取对话内容（修改以支持模型信息提取）
+// 从Claude JSON数据中提取对话内容（修改以支持模型信息和图片提取）
 const extractClaudeData = (jsonData) => {
   // 提取元数据
   const title = jsonData.name || "无标题对话";
@@ -168,7 +303,10 @@ const extractClaudeData = (jsonData) => {
     project_uuid: jsonData.project_uuid || "",
     uuid: jsonData.uuid || "",
     model: model, // 添加模型信息
-    platform: 'claude'
+    platform: 'claude',
+    // 新增图片相关元信息
+    has_embedded_images: jsonData._debug_info?.images_processed > 0,
+    images_processed: jsonData._debug_info?.images_processed || 0
   };
 
   // 提取聊天历史
@@ -183,7 +321,7 @@ const extractClaudeData = (jsonData) => {
       const senderLabel = sender === "human" ? "人类" : "Claude";
       const timestamp = parseTimestamp(msg.created_at);
 
-      // 准备消息结构
+      // 准备消息结构，新增 images 数组
       const messageData = {
         index: msgIdx,
         uuid: msg.uuid || "",
@@ -198,21 +336,26 @@ const extractClaudeData = (jsonData) => {
         tools: [],
         artifacts: [],
         citations: [],
+        images: [], // 新增图片数组
         // 分支相关字段
         branch_id: null,
         is_branch_point: false,
         branch_level: 0
       };
 
-      // 处理消息内容
+      // 1. 处理消息内容 (包括内嵌图片)
       if (msg.content && Array.isArray(msg.content)) {
-        // 新格式: 使用content数组
         processContentArray(msg.content, messageData);
       } else if (msg.text) {
-        // 旧格式: 直接使用text字段
         messageData.raw_text = msg.text;
         messageData.display_text = msg.text;
       }
+      
+      // 2. 处理作为附件的图片
+      processMessageImages(msg, messageData);
+
+      // 3. 整理最终显示的文本
+      finalizeDisplayText(messageData);
 
       chatHistory.push(messageData);
     });
@@ -229,11 +372,11 @@ const extractClaudeData = (jsonData) => {
   };
 };
 
-// 处理content数组中的所有元素
+// 处理content数组中的所有元素 (已更新，支持图片类型)
 const processContentArray = (contentArray, messageData) => {
   let displayText = "";
 
-  contentArray.forEach(item => {
+  contentArray.forEach((item, index) => {
     if (!item || typeof item !== 'object') return;
     
     const contentType = item.type || "";
@@ -252,7 +395,25 @@ const processContentArray = (contentArray, messageData) => {
           }
         });
       }
-    } 
+    }
+    // 新增：直接处理 content 数组中的图片
+    else if (contentType === "image") {
+        const imageSource = item.source || {};
+        const imageInfo = {
+            index: messageData.images.length,
+            file_name: `image_content_${index}`,
+            file_type: imageSource.media_type || 'image/jpeg',
+            display_mode: 'base64',
+            embedded_image: {
+                data: `data:${imageSource.media_type};base64,${imageSource.data}`,
+                size: imageSource.data ? atob(imageSource.data).length : 0,
+            },
+            // 添加一个占位符，表示图片在文本流中的位置
+            placeholder: ` [图片${messageData.images.length + 1}] `
+        };
+        messageData.images.push(imageInfo);
+        displayText += imageInfo.placeholder;
+    }
     else if (contentType === "thinking") {
       const thinking = item.thinking || "";
       messageData.thinking = thinking.trim();
@@ -293,7 +454,104 @@ const processContentArray = (contentArray, messageData) => {
   
   // 更新消息数据
   messageData.content_items = contentArray;
-  messageData.display_text = displayText.trim();
+  // 注意：这里只附加新处理的文本，旧文本在 extractClaudeData 中处理
+  messageData.display_text += displayText.trim();
+};
+
+// 新增：处理消息中的图片文件 (files, files_v2, attachments)
+const processMessageImages = (message, messageData) => {
+  const processFiles = (files, version = '') => {
+    if (files && Array.isArray(files)) {
+      files.forEach((file) => {
+        if (file.file_kind === 'image') {
+          const imageInfo = {
+            index: messageData.images.length,
+            file_name: file.file_name || `image_${version}_${messageData.images.length}`,
+            file_uuid: file.file_uuid,
+            created_at: file.created_at,
+            thumbnail_url: file.thumbnail_url,
+            preview_url: file.preview_url,
+            embedded_image: null,
+            display_mode: 'url'
+          };
+          
+          if (file.embedded_image && file.embedded_image.data) {
+            imageInfo.embedded_image = file.embedded_image;
+            imageInfo.display_mode = 'base64';
+            console.log(`[Lyra Parser] 发现嵌入图片(${version}): ${file.file_name}`);
+          }
+          
+          messageData.images.push(imageInfo);
+        }
+      });
+    }
+  };
+
+  processFiles(message.files, 'v1');
+  if (messageData.images.length === 0) {
+      processFiles(message.files_v2, 'v2');
+  }
+
+  if (message.attachments && Array.isArray(message.attachments)) {
+    message.attachments.forEach((attachment) => {
+      if (attachment.file_type && attachment.file_type.startsWith('image/')) {
+        const imageInfo = {
+          index: messageData.images.length,
+          file_name: attachment.file_name || `attachment_${messageData.images.length}`,
+          file_type: attachment.file_type,
+          file_url: attachment.file_url,
+          embedded_image: null,
+          display_mode: 'url'
+        };
+        
+        if (attachment.embedded_image && attachment.embedded_image.data) {
+          imageInfo.embedded_image = attachment.embedded_image;
+          imageInfo.display_mode = 'base64';
+          console.log(`[Lyra Parser] 发现嵌入附件图片: ${attachment.file_name}`);
+        }
+        
+        messageData.images.push(imageInfo);
+      }
+    });
+  }
+};
+
+// 新增：在处理完所有内容后，生成最终的显示文本
+const finalizeDisplayText = (messageData) => {
+    // 如果图片是作为附件（没有占位符），而不是内嵌在文本流中，则在开头添加标记
+    const hasAttachmentImages = messageData.images.some(img => !img.placeholder);
+    
+    if (hasAttachmentImages) {
+        const imageMarkdown = messageData.images
+            .filter(img => !img.placeholder) // 只为附件图片生成标记
+            .map((img, idx) => `[图片${idx + 1}: ${img.file_name}]`)
+            .join(' ');
+            
+        if (imageMarkdown) {
+            // 将图片标记加在最前面
+            messageData.display_text = `${imageMarkdown}\n\n${messageData.display_text}`.trim();
+        }
+    }
+};
+
+// 新增：为 UI 组件提供图片显示所需的数据
+export const getImageDisplayData = (imageInfo) => {
+  if (imageInfo.display_mode === 'base64' && imageInfo.embedded_image) {
+    return {
+      src: imageInfo.embedded_image.data,
+      alt: imageInfo.file_name,
+      title: `${imageInfo.file_name} (${formatFileSize(imageInfo.embedded_image.size)})`,
+      isBase64: true
+    };
+  } else {
+    // 返回 URL 形式
+    return {
+      src: imageInfo.preview_url || imageInfo.thumbnail_url || imageInfo.file_url,
+      alt: imageInfo.file_name,
+      title: imageInfo.file_name,
+      isBase64: false
+    };
+  }
 };
 
 // 提取artifact信息
@@ -832,7 +1090,7 @@ const extractClaudeFullExportData = (jsonData, fileName) => {
   const conversations = jsonData.conversations || [];
   const totalConversations = jsonData.totalConversations || conversations.length;
   
-  // 创建元信息
+  // 创建元信息, 新增图片相关
   const metaInfo = {
     title: `Claude完整导出 (${totalConversations}个对话)`,
     created_at: exportedAt,
@@ -842,7 +1100,9 @@ const extractClaudeFullExportData = (jsonData, fileName) => {
     model: "Claude完整导出", // 添加模型信息
     platform: 'claude_full_export',
     exportedAt: exportedAt,
-    totalConversations: totalConversations
+    totalConversations: totalConversations,
+    includesImages: jsonData.includesImages || false,
+    totalImagesProcessed: 0 // 初始化，后面累加
   };
 
   // 处理所有对话
@@ -856,6 +1116,11 @@ const extractClaudeFullExportData = (jsonData, fileName) => {
     const convName = conversation.name || `对话 ${convIdx + 1}`;
     const projectUuid = conversation.project_uuid || 'no_project';
     const projectName = conversation.project?.name || '无项目';
+    
+    // 累加图片总数
+    if(conversation._debug_info && conversation._debug_info.images_processed) {
+        metaInfo.totalImagesProcessed += conversation._debug_info.images_processed;
+    }
     
     // 初始化对话组
     if (!conversationGroups[convUuid]) {
@@ -919,47 +1184,24 @@ const extractClaudeFullExportData = (jsonData, fileName) => {
     
     // 处理该对话的所有消息
     if (conversation.chat_messages && Array.isArray(conversation.chat_messages)) {
-      conversation.chat_messages.forEach((msg, msgIdx) => {
-        const sender = msg.sender || "unknown";
-        const senderLabel = sender === "human" ? "人类" : "Claude";
-        const timestamp = parseTimestamp(msg.created_at);
-
-        const messageData = {
-          index: globalMessageIndex++,
-          uuid: msg.uuid || `msg_${convIdx}_${msgIdx}`,
-          parent_uuid: msg.parent_message_uuid || (globalMessageIndex > 1 ? allMessages[allMessages.length - 1].uuid : ""),
-          sender,
-          sender_label: senderLabel,
-          timestamp,
-          content_items: [],
-          raw_text: "",
-          display_text: "",
-          thinking: "",
-          tools: [],
-          artifacts: [],
-          citations: [],
-          branch_id: null,
-          is_branch_point: false,
-          branch_level: 0,
-          conversation_uuid: convUuid,
-          project_uuid: projectUuid,
-          conversation_name: convName,
-          project_name: projectName
-        };
-
-        // 处理消息内容
-        if (msg.content && Array.isArray(msg.content)) {
-          processContentArray(msg.content, messageData);
-        } else if (msg.text) {
-          messageData.raw_text = msg.text;
-          messageData.display_text = msg.text;
-        }
-
-        allMessages.push(messageData);
-        conversationGroups[convUuid].messages.push(messageData);
-        conversationGroups[convUuid].messageCount++;
-        projectGroups[projectUuid].messages.push(messageData);
-        projectGroups[projectUuid].messageCount++;
+      // 使用我们更新过的 extractClaudeData 来处理单个对话的消息
+      const singleConvData = extractClaudeData(conversation);
+      singleConvData.chat_history.forEach(msg => {
+          // 更新索引和一些全局信息
+          const updatedMsg = {
+              ...msg,
+              index: globalMessageIndex++,
+              parent_uuid: msg.parent_message_uuid || (globalMessageIndex > 1 ? allMessages[allMessages.length - 1].uuid : ""),
+              conversation_uuid: convUuid,
+              project_uuid: projectUuid,
+              conversation_name: convName,
+              project_name: projectName
+          };
+          allMessages.push(updatedMsg);
+          conversationGroups[convUuid].messages.push(updatedMsg);
+          conversationGroups[convUuid].messageCount++;
+          projectGroups[projectUuid].messages.push(updatedMsg);
+          projectGroups[projectUuid].messageCount++;
       });
     }
     

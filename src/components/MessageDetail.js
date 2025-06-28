@@ -2,14 +2,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { getImageDisplayData } from '../utils/fileParser';
 
 const MessageDetail = ({ 
   processedData, 
   selectedMessageIndex, 
   activeTab, 
-  searchQuery 
+  searchQuery,
+  format, // 新增格式参数
+  onTabChange // 新增标签页切换回调
 }) => {
   const contentRef = useRef(null);
+  const [imageLoadErrors, setImageLoadErrors] = useState({});
   
   // 获取当前选中的消息
   const getCurrentMessage = () => {
@@ -20,6 +24,53 @@ const MessageDetail = ({
   };
 
   const currentMessage = getCurrentMessage();
+
+  // 过滤图片引用的工具函数（增强版）
+  const filterImageReferences = (text) => {
+    if (!text) return '';
+    // 匹配各种图片引用格式：
+    // [图片1: filename] [附件: filename] [image: filename] [attachment: filename]
+    // [图片1]、[图片2]等简单格式
+    return text
+      .replace(/\[(?:图片|附件|图像|image|attachment)\d*\s*[:：]\s*[^\]]+\]/gi, '')
+      .replace(/\[(?:图片|附件|图像|image|attachment)\d+\]/gi, '')
+      .replace(/\[图片1\]/gi, '') // 特别处理[图片1]
+      .replace(/\[图片2\]/gi, '') // 特别处理[图片2]
+      .replace(/\[图片3\]/gi, '') // 特别处理[图片3]
+      .replace(/\[图片4\]/gi, '') // 特别处理[图片4]
+      .replace(/\[图片5\]/gi, '') // 特别处理[图片5]
+      .trim(); // 移除首尾空格
+  };
+
+  // 根据格式决定显示哪些标签页
+  const getAvailableTabs = () => {
+    const baseTabs = [{ id: 'content', label: '内容' }];
+    
+    // 只有Claude格式才显示思考过程和Artifacts
+    if (format === 'claude' || format === 'claude_full_export' || !format) {
+      baseTabs.push(
+        { id: 'thinking', label: '思考过程' },
+        { id: 'artifacts', label: 'Artifacts' }
+      );
+    }
+    
+    return baseTabs;
+  };
+
+  const availableTabs = getAvailableTabs();
+
+  // 自动调整activeTab，确保它在可用标签中
+  useEffect(() => {
+    const availableTabIds = availableTabs.map(tab => tab.id);
+    if (availableTabIds.length > 0 && !availableTabIds.includes(activeTab)) {
+      onTabChange && onTabChange('content'); // 默认切换到内容标签
+    }
+  }, [availableTabs, activeTab, onTabChange]);
+
+  // 清除图片错误状态当消息改变时
+  useEffect(() => {
+    setImageLoadErrors({});
+  }, [selectedMessageIndex]);
 
   // 自定义渲染组件，用于搜索高亮
   const MarkdownComponents = {
@@ -169,6 +220,88 @@ const MessageDetail = ({
     return children;
   };
 
+  // 渲染图片
+  const renderImages = (images) => {
+    if (!images || images.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="message-images">
+        <h4>图片附件 ({images.length})</h4>
+        <div className="image-grid">
+          {images.map((image, index) => {
+            const imageData = getImageDisplayData(image);
+            const errorKey = `${selectedMessageIndex}-${index}`;
+            const hasError = imageLoadErrors[errorKey];
+            let finalSrc = imageData.src;
+            // 判断这是否是一个base64图片，并且没有"data:"前缀
+            if (imageData.isBase64 && !finalSrc.startsWith('data:')) {
+              // 从原始image对象获取MIME类型，如果不存在，则默认使用 'image/png'
+              const mediaType = image.media_type || 'image/png'; 
+              finalSrc = `data:${mediaType};base64,${finalSrc}`;
+            }
+            return (
+              <div key={index} className="image-container">
+                <div className="image-wrapper">
+                  {hasError ? (
+                    <div className="image-error">
+                      <span className="error-icon">🖼️</span>
+                      <span className="error-text">图片加载失败</span>
+                      <span className="error-filename">{image.file_name}</span>
+                    </div>
+                  ) : (
+                    <img 
+                      src={finalSrc} // <--- 使用修复后的src
+                      alt={imageData.alt}
+                      title={imageData.title}
+                      onError={() => {
+                        setImageLoadErrors(prev => ({
+                          ...prev,
+                          [errorKey]: true
+                        }));
+                      }}
+                      onClick={() => {
+                        // 在新标签页打开图片时，同样使用修复后的src
+                        if (imageData.isBase64) {
+                          const newWindow = window.open();
+                          newWindow.document.write(`
+                            <html>
+                              <head>
+                                <title>${imageData.alt}</title>
+                                <style>
+                                  body { margin: 0; background: #000; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+                                  img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+                                </style>
+                              </head>
+                              <body>
+                                <img src="${finalSrc}" alt="${imageData.alt}" />
+                              </body>
+                            </html>
+                          `);
+                        } else {
+                          window.open(finalSrc, '_blank');
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+                <div className="image-info">
+                  <span className="image-name">{image.file_name}</span>
+                  {image.embedded_image && image.embedded_image.size && (
+                    <span className="image-size">
+                      {(image.embedded_image.size / 1024).toFixed(1)} KB
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // 渲染Artifacts
   const renderArtifacts = (artifacts) => {
     if (!artifacts || artifacts.length === 0) {
@@ -306,12 +439,14 @@ const MessageDetail = ({
               )}
             </div>
             
+            {renderImages(currentMessage.images || currentMessage.attachments)}
+            
             <div className="message-text">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={MarkdownComponents}
               >
-                {currentMessage.display_text || ''}
+                {filterImageReferences(currentMessage.display_text || '')}
               </ReactMarkdown>
             </div>
             
@@ -321,6 +456,10 @@ const MessageDetail = ({
         );
 
       case 'thinking':
+        // 只有Claude格式才显示思考过程
+        if (format !== 'claude' && format !== 'claude_full_export' && format) {
+          return <div className="placeholder">此格式不支持思考过程</div>;
+        }
         return (
           <div className="thinking-content">
             {currentMessage.thinking ? (
@@ -329,7 +468,7 @@ const MessageDetail = ({
                   remarkPlugins={[remarkGfm]}
                   components={MarkdownComponents}
                 >
-                  {currentMessage.thinking}
+                  {filterImageReferences(currentMessage.thinking)}
                 </ReactMarkdown>
               </div>
             ) : (
@@ -339,6 +478,10 @@ const MessageDetail = ({
         );
 
       case 'artifacts':
+        // 只有Claude格式才显示Artifacts
+        if (format !== 'claude' && format !== 'claude_full_export' && format) {
+          return <div className="placeholder">此格式不支持Artifacts</div>;
+        }
         return (
           <div className="artifacts-content">
             {renderArtifacts(currentMessage.artifacts)}
@@ -352,7 +495,25 @@ const MessageDetail = ({
 
   return (
     <div className="message-detail" ref={contentRef}>
-      {renderTabContent()}
+      {/* 标签页 - 只有在有多个可用标签时才显示 */}
+      {availableTabs.length > 1 && (
+        <div className="detail-tabs">
+          {availableTabs.map(tab => (
+            <button 
+              key={tab.id}
+              className={`tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => onTabChange && onTabChange(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+      
+      {/* 标签页内容 */}
+      <div className="tab-content">
+        {renderTabContent()}
+      </div>
     </div>
   );
 };

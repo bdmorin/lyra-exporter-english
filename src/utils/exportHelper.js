@@ -47,18 +47,32 @@ export const exportChatAsMarkdown = (processedData, config) => {
   lines.push(`# ${meta_info.title || '对话记录'}`);
   lines.push(`*创建时间: ${meta_info.created_at || '未知'}*`);
   lines.push(`*导出时间: ${new Date().toLocaleString('zh-CN')}*`);
+  
+  // 如果是仅导出已完成的消息，添加说明
+  if (config.exportMarkedOnly) {
+    lines.push(`*导出类型: 仅包含已完成标记的消息*`);
+  }
 
   lines.push("");
   lines.push("---");
   lines.push("");
 
+  // 如果没有消息，添加提示
+  if (!chat_history || chat_history.length === 0) {
+    lines.push("*没有符合条件的消息*");
+    return lines.join("\n");
+  }
+
   // 添加消息内容
+  let exportedCount = 0;
   chat_history.forEach(msg => {
     // 如果设置为只导出已标记并且该消息未被标记，则跳过
-    if (config.exportMarkedOnly && !config.markedItems.has(msg.index)) {
+    // 注意：在App.js中已经进行了过滤，这里是双重保险
+    if (config.exportMarkedOnly && !config.markedItems?.has(msg.index)) {
       return;
     }
 
+    exportedCount++;
     const sender = msg.sender_label;
     const timestamp = msg.timestamp;
     const msgIndex = msg.index + 1; // 序号从1开始
@@ -74,7 +88,7 @@ export const exportChatAsMarkdown = (processedData, config) => {
     lines.push(`## ${msgIndex}. ${sender}${branchMarker}`);
 
     // 根据配置决定是否显示时间戳
-    if (!config.hideTimestamps) {
+    if (config.includeTimestamps) {
       lines.push(`*${timestamp}*`);
     }
 
@@ -247,18 +261,31 @@ export const exportChatAsMarkdown = (processedData, config) => {
     lines.push("");
   });
 
+  // 如果设置了仅导出已完成，在末尾添加统计信息
+  if (config.exportMarkedOnly) {
+    lines.push("");
+    lines.push(`*共导出 ${exportedCount} 条已完成的消息*`);
+  }
+
   return lines.join("\n");
 };
 
 // 保存文本到文件
 export const saveTextFile = (text, fileName) => {
-  const blob = new Blob([text], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  try {
+    const blob = new Blob([text], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return true;
+  } catch (error) {
+    console.error('保存文件失败:', error);
+    alert('保存文件失败，请重试');
+    return false;
+  }
 };

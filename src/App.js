@@ -44,13 +44,13 @@ function App() {
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [viewMode, setViewMode] = useState('conversations'); // 'conversations' | 'timeline'
   const [selectedFileIndex, setSelectedFileIndex] = useState(null);
-  const [selectedConversationUuid, setSelectedConversationUuid] = useState(null); // 只存储对话UUID，不包含文件索引
+  const [selectedConversationUuid, setSelectedConversationUuid] = useState(null);
   const [showMessageDetail, setShowMessageDetail] = useState(false);
-  const [operatedFiles, setOperatedFiles] = useState(new Set()); // 跟踪有操作的文件
-  const [scrollPositions, setScrollPositions] = useState({}); // 记忆滚动位置
+  const [operatedFiles, setOperatedFiles] = useState(new Set());
+  const [scrollPositions, setScrollPositions] = useState({});
   const [exportOptions, setExportOptions] = useState({
     scope: 'current', // 'current' | 'operated' | 'all'
-    includeCompleted: true,
+    includeCompleted: false, // 改为false，表示是否"仅"导出已完成
     excludeDeleted: true,
     includeThinking: true,
     includeArtifacts: true,
@@ -100,21 +100,7 @@ function App() {
       const fileData = isCurrentFile ? processedData : null;
       const metadata = fileMetadata[file.name] || {};
       
-      // 动态获取文件类型显示
-      const getFileTypeDisplay = (format, platform) => {
-        switch (format) {
-          case 'claude':
-            return '💬 Claude对话';
-          case 'claude_conversations':
-            return '📋 对话列表';
-          case 'claude_full_export':
-            return '📦 完整导出';
-          case 'gemini_notebooklm':
-            return `🤖 ${platform === 'gemini' ? 'Gemini' : 'NotebookLM'}对话`;
-          default:
-            return '📄 未知格式';
-        }
-      };
+
       
       // 优先使用当前加载的数据，其次使用元数据
       const format = fileData?.format || metadata.format || 'unknown';
@@ -123,28 +109,27 @@ function App() {
         (fileData?.views?.conversationList?.length || 0) : 
         (metadata.conversationCount || (fileData ? 1 : 0));
       
-      // 获取模型信息 - 优先从当前数据获取，再从元数据获取
-      // 对于 claude 格式，如果没有模型信息，使用空字符串让 getModelDisplay 处理为默认的 Sonnet
+      // 获取模型信息
       const model = fileData?.meta_info?.model || metadata.model || (format === 'claude' ? '' : 'Claude');
       
-      cards.push({
-        type: 'file',
-        uuid: generateFileCardUuid(fileIndex),
-        name: metadata.title ? metadata.title.replace('.json', '') : file.name.replace('.json', ''), // 优先使用对话标题
-        fileName: file.name,
-        fileIndex,
-        isCurrentFile,
-        fileData,
-        format,
-        model, // 添加模型信息
-        messageCount,
-        conversationCount,
-        created_at: metadata.created_at || (file.lastModified ? new Date(file.lastModified).toISOString() : null),
-        fileTypeDisplay: getFileTypeDisplay(format, metadata.platform),
-        summary: format === 'claude_full_export' ? 
-          `${conversationCount}个对话，${messageCount}条消息` :
-          (format !== 'unknown' ? `${messageCount}条消息的对话` : '点击加载文件内容...')
-      });
+cards.push({
+  type: 'file',
+  uuid: generateFileCardUuid(fileIndex),
+  name: metadata.title ? metadata.title.replace('.json', '') : file.name.replace('.json', ''),
+  fileName: file.name,
+  fileIndex,
+  isCurrentFile,
+  fileData,
+  format,
+  model,
+  messageCount,
+  conversationCount,
+  created_at: metadata.created_at || (file.lastModified ? new Date(file.lastModified).toISOString() : null),
+  platform: metadata.platform || 'claude',
+  summary: format === 'claude_full_export' ? 
+    `${conversationCount}个对话，${messageCount}条消息` :
+    (format !== 'unknown' ? `${messageCount}条消息的对话` : '点击加载文件内容...')
+});
     });
     
     // 如果当前文件是claude_full_export格式，展示筛选后的对话卡片
@@ -229,7 +214,7 @@ function App() {
       } else {
         // 其他格式：直接进入时间线模式
         setSelectedFileIndex(card.fileIndex);
-        setSelectedConversationUuid(null); // 普通文件没有对话UUID
+        setSelectedConversationUuid(null);
         setViewMode('timeline');
       }
     } else if (card.type === 'conversation') {
@@ -295,23 +280,7 @@ function App() {
     }
   };
 
-  // 获取文件类型显示
-  const getFileTypeDisplay = (data) => {
-    if (!data) return '';
-    
-    switch (data.format) {
-      case 'claude':
-        return '💬 Claude对话';
-      case 'claude_conversations':
-        return '📋 对话列表';
-      case 'claude_full_export':
-        return '📦 完整导出';
-      case 'gemini_notebooklm':
-        return `🤖 ${data.platform === 'gemini' ? 'Gemini' : 'NotebookLM'}对话`;
-      default:
-        return '📄 未知格式';
-    }
-  };
+
 
   // 获取所有文件的标记统计（改进版）
   const getAllMarksStats = useCallback(() => {
@@ -319,17 +288,11 @@ function App() {
     let totalImportant = 0;
     let totalDeleted = 0;
     
-    console.log('[getAllMarksStats] 开始统计标记数据...');
-    console.log('[getAllMarksStats] 文件总数:', files.length);
-    
     // 遍历所有文件获取标记数据
     files.forEach((file, index) => {
       // 普通文件的标记
       const fileUuid = generateFileCardUuid(index);
       const storageKey = `marks_${fileUuid}`;
-      
-      console.log(`[getAllMarksStats] 检查文件 ${index}: ${file.name}`);
-      console.log(`[getAllMarksStats] 存储键: ${storageKey}`);
       
       try {
         const savedData = localStorage.getItem(storageKey);
@@ -339,32 +302,21 @@ function App() {
           const importantCount = (parsed.important || []).length;
           const deletedCount = (parsed.deleted || []).length;
           
-          console.log(`[getAllMarksStats] 找到标记数据:`, {
-            completed: completedCount,
-            important: importantCount,
-            deleted: deletedCount
-          });
-          
           totalCompleted += completedCount;
           totalImportant += importantCount;
           totalDeleted += deletedCount;
-        } else {
-          console.log(`[getAllMarksStats] 未找到标记数据`);
         }
       } catch (error) {
-        console.error(`[getAllMarksStats] 获取文件 ${file.name} 的标记失败:`, error);
+        console.error(`获取文件 ${file.name} 的标记失败:`, error);
       }
       
       // 如果是claude_full_export格式，还需要检查每个对话的标记
       if (index === currentFileIndex && processedData?.format === 'claude_full_export') {
-        console.log(`[getAllMarksStats] 文件 ${index} 是claude_full_export格式`);
         const conversations = processedData.views?.conversationList || [];
-        console.log(`[getAllMarksStats] 对话数量: ${conversations.length}`);
         
         conversations.forEach(conv => {
           const convUuid = generateConversationCardUuid(index, conv.uuid);
           const convStorageKey = `marks_${convUuid}`;
-          console.log(`[getAllMarksStats] 检查对话: ${conv.name} (${convStorageKey})`);
           
           try {
             const savedData = localStorage.getItem(convStorageKey);
@@ -374,32 +326,23 @@ function App() {
               const importantCount = (parsed.important || []).length;
               const deletedCount = (parsed.deleted || []).length;
               
-              console.log(`[getAllMarksStats] 找到对话标记:`, {
-                completed: completedCount,
-                important: importantCount,
-                deleted: deletedCount
-              });
-              
               totalCompleted += completedCount;
               totalImportant += importantCount;
               totalDeleted += deletedCount;
             }
           } catch (error) {
-            console.error(`[getAllMarksStats] 获取对话 ${conv.name} 的标记失败:`, error);
+            console.error(`获取对话 ${conv.name} 的标记失败:`, error);
           }
         });
       }
     });
     
-    const result = {
+    return {
       completed: totalCompleted,
       important: totalImportant,
       deleted: totalDeleted,
       total: totalCompleted + totalImportant + totalDeleted
     };
-    
-    console.log('[getAllMarksStats] 最终统计结果:', result);
-    return result;
   }, [files, processedData, currentFileIndex]);
 
   // 调试函数 - 检查标记数据
@@ -500,7 +443,7 @@ function App() {
     }
   }, []);
 
-  // 导出功能
+  // 导出功能 - 修改部分
   const handleExport = async () => {
     const { exportChatAsMarkdown, saveTextFile } = await import('./utils/exportHelper');
     
@@ -695,6 +638,13 @@ function App() {
       // 根据导出选项筛选消息
       let filteredHistory = [...(item.data.chat_history || [])];
       
+      // 如果选择了"仅导出已完成标记"
+      if (exportOptions.includeCompleted) {
+        filteredHistory = filteredHistory.filter(msg => 
+          item.marks.completed?.has(msg.index)
+        );
+      }
+      
       // 排除已删除的消息（如果选择了该选项）
       if (exportOptions.excludeDeleted) {
         filteredHistory = filteredHistory.filter(msg => 
@@ -708,8 +658,8 @@ function App() {
       };
       
       const config = {
-        exportMarkedOnly: false,
-        markedItems: new Set(),
+        exportMarkedOnly: exportOptions.includeCompleted, // 传递是否仅导出已完成
+        markedItems: item.marks.completed || new Set(),
         includeTimestamps: exportOptions.includeTimestamps,
         includeThinking: exportOptions.includeThinking,
         includeArtifacts: exportOptions.includeArtifacts,
@@ -879,9 +829,7 @@ function App() {
                   <div className="current-file-info">
                     <span className="current-file-label">当前文件:</span>
                     <span className="current-file-name">{currentFile.name}</span>
-                    {processedData && (
-                      <span className="current-file-type">{getFileTypeDisplay(processedData)}</span>
-                    )}
+    
                   </div>
                 )}
                 
@@ -1173,11 +1121,12 @@ function App() {
                         type="checkbox" 
                         checked={exportOptions.includeCompleted}
                         onChange={(e) => setExportOptions({...exportOptions, includeCompleted: e.target.checked})}
-                        disabled
                       />
                       <div className="option-label">
                         <span>仅导出"已完成"标记</span>
-                        <span className="hint">即将支持</span>
+                        <span className="option-description">
+                          只导出标记为已完成的消息
+                        </span>
                       </div>
                     </label>
                   </div>

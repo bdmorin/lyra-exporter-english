@@ -1,6 +1,13 @@
 /* UniversalTimeline.css */
 /* 通用时间线样式，使用现有主题系统 */
 
+/* MessageDetail组件样式 */
+.message-detail {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 /* 基础时间线容器 */
 .universal-timeline-container {
   max-width: 900px;
@@ -40,13 +47,13 @@
   flex-shrink: 0;
 }
 
-/* 平台特定的badge颜色 */
+/* 平台特定的badge颜色 - 使用正确的Google品牌色 */
 .platform-gemini .platform-badge {
-  background: var(--accent-info);
+  background: #1A73E8; /* Google蓝 */
 }
 
 .platform-notebooklm .platform-badge {
-  background: var(--accent-secondary);
+  background: #4B5563; /* 灰色 */
 }
 
 .info-grid {
@@ -139,13 +146,13 @@
   background: var(--accent-primary);
 }
 
-/* 平台特定的点颜色 */
+/* 平台特定的点颜色 - 使用正确的Google品牌色 */
 .platform-gemini .timeline-dot.assistant {
-  background: var(--accent-info);
+  background: #1A73E8; /* Google蓝 */
 }
 
 .platform-notebooklm .timeline-dot.assistant {
-  background: var(--accent-secondary);
+  background: #4B5563; /* 灰色 */
 }
 
 /* 时间线内容 */
@@ -205,15 +212,15 @@
   border-color: var(--accent-primary);
 }
 
-/* 平台特定的头像颜色 */
+/* 平台特定的头像颜色 - 使用正确的Google品牌色 */
 .platform-gemini .timeline-avatar.assistant {
-  background: var(--accent-info);
-  border-color: var(--accent-info);
+  background: #1A73E8; /* Google蓝 */
+  border-color: #1A73E8;
 }
 
 .platform-notebooklm .timeline-avatar.assistant {
-  background: var(--accent-secondary);
-  border-color: var(--accent-secondary);
+  background: #4B5563; /* 灰色 */
+  border-color: #4B5563;
 }
 
 .sender-info {
@@ -263,21 +270,21 @@
   box-shadow: var(--shadow-md);
 }
 
-/* 平台特定的按钮颜色 */
+/* 平台特定的按钮颜色 - 使用正确的Google品牌色 */
 .platform-gemini .btn-detail {
-  background: var(--accent-info);
+  background: #1A73E8; /* Google蓝 */
 }
 
 .platform-gemini .btn-detail:hover {
-  background: var(--accent-primary);
+  background: #1557b0; /* 深一点的Google蓝 */
 }
 
 .platform-notebooklm .btn-detail {
-  background: var(--accent-secondary);
+  background: #4B5563; /* 灰色 */
 }
 
 .platform-notebooklm .btn-detail:hover {
-  background: var(--accent-primary);
+  background: #374151; /* 深一点的灰色 */
 }
 
 /* 时间线主体 */
@@ -361,15 +368,15 @@
   border-color: var(--accent-info);
 }
 
-/* 平台特定的标签颜色 */
+/* 平台特定的标签颜色 - 使用正确的Google品牌色 */
 .platform-gemini .timeline-tag.platform-tag {
-  background: var(--accent-info);
-  border-color: var(--accent-info);
+  background: #1A73E8; /* Google蓝 */
+  border-color: #1A73E8;
 }
 
 .platform-notebooklm .timeline-tag.platform-tag {
-  background: var(--accent-secondary);
-  border-color: var(--accent-secondary);
+  background: #4B5563; /* 灰色 */
+  border-color: #4B5563;
 }
 
 /* 响应式设计 */
@@ -463,19 +470,21 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* 防止内容溢出 */
 }
 
-/* 详情标签页 */
-.detail-tabs {
+/* MessageDetail内部的标签页样式 */
+.message-detail .detail-tabs {
   display: flex;
   gap: 8px;
   padding: 16px;
   border-bottom: 1px solid var(--border-primary);
   background: var(--bg-tertiary);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  flex-shrink: 0; /* 防止被压缩 */
 }
 
-.detail-tabs .tab {
+.message-detail .detail-tabs .tab {
   padding: 8px 16px;
   background: transparent;
   border: 1px solid var(--border-primary);
@@ -486,22 +495,35 @@
   font-size: 0.9rem;
 }
 
-.detail-tabs .tab:hover {
+.message-detail .detail-tabs .tab:hover {
   background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
-.detail-tabs .tab.active {
+.message-detail .detail-tabs .tab.active {
   background: var(--accent-primary);
   color: white;
   border-color: var(--accent-primary);
 }
 
-/* 详情内容 */
-.detail-content {
+/* 标签页内容区域 */
+.message-detail .tab-content {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+}
+
+/* 当没有标签页时的内容样式 */
+.message-detail:not(:has(.detail-tabs)) .tab-content {
+  padding-top: 0;
+}
+
+/* 详情内容区域 */
+.detail-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 标记按钮区域 */
@@ -512,6 +534,7 @@
   border-top: 1px solid var(--border-primary);
   background: var(--bg-tertiary);
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  flex-shrink: 0;
 }
 
 .detail-actions .btn-secondary {
@@ -899,22 +922,40 @@
   display: none;
 }
 
-/* 深色主题的特殊优化 */
-[data-theme="dark"] .timeline .timeline-branch-switcher::before {
-  background: var(--accent-info);
+/* 深色主题的特殊优化 - 使用正确的Google品牌色 */
+[data-theme="dark"] .platform-gemini .timeline .timeline-branch-switcher::before {
+  background: #1A73E8; /* Google蓝 */
 }
 
-[data-theme="dark"] .timeline .timeline-branch-switcher::after {
-  background: var(--accent-info);
+[data-theme="dark"] .platform-gemini .timeline .timeline-branch-switcher::after {
+  background: #1A73E8;
   border-color: var(--bg-primary);
 }
 
-/* 亮色主题的特殊优化 */
-[data-theme="light"] .timeline .timeline-branch-switcher::before {
-  background: var(--accent-primary);
+[data-theme="dark"] .platform-notebooklm .timeline .timeline-branch-switcher::before {
+  background: #4B5563; /* 灰色 */
 }
 
-[data-theme="light"] .timeline .timeline-branch-switcher::after {
-  background: var(--accent-primary);
+[data-theme="dark"] .platform-notebooklm .timeline .timeline-branch-switcher::after {
+  background: #4B5563;
+  border-color: var(--bg-primary);
+}
+
+/* 亮色主题的特殊优化 - 使用正确的Google品牌色 */
+[data-theme="light"] .platform-gemini .timeline .timeline-branch-switcher::before {
+  background: #1A73E8; /* Google蓝 */
+}
+
+[data-theme="light"] .platform-gemini .timeline .timeline-branch-switcher::after {
+  background: #1A73E8;
+  border-color: white;
+}
+
+[data-theme="light"] .platform-notebooklm .timeline .timeline-branch-switcher::before {
+  background: #4B5563; /* 灰色 */
+}
+
+[data-theme="light"] .platform-notebooklm .timeline .timeline-branch-switcher::after {
+  background: #4B5563;
   border-color: white;
 }

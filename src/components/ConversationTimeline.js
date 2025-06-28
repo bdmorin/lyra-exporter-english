@@ -1,7 +1,10 @@
 // components/ConversationTimeline.js - 修复分支切换器问题
 import React, { useState, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import MessageDetail from './MessageDetail';
 import BranchSwitcher, { useBranchSwitcher } from './BranchSwitcher';
+import PlatformIcon from './PlatformIcon';
 
 const ConversationTimeline = ({ 
   data, 
@@ -27,8 +30,6 @@ const ConversationTimeline = ({
   
   // 分析分支结构 - 修复版本，支持claude_full_export格式
   const branchAnalysis = useMemo(() => {
-    console.log("=== 开始分支分析 ===");
-    
     // 递归查找分支的所有后续消息 - 移到useMemo内部
     const findBranchMessages = (startUuid, msgDict, parentChildren) => {
       const branchMessages = [msgDict[startUuid]];
@@ -65,7 +66,6 @@ const ConversationTimeline = ({
         msg.conversation_uuid === realConversationUuid && 
         !msg.is_conversation_header
       );
-      console.log(`claude_full_export格式，筛选对话 ${realConversationUuid}，消息数: ${analysisMessages.length}`);
     }
     
     analysisMessages.forEach(msg => {
@@ -86,7 +86,6 @@ const ConversationTimeline = ({
     Object.entries(parentChildren).forEach(([parentUuid, children]) => {
       if (children.length > 1 && msgDict[parentUuid]) {
         const branchPoint = msgDict[parentUuid];
-        console.log(`🔀 发现分支点: ${branchPoint.uuid.substring(0, 8)} (消息${branchPoint.index})`);
         
         // 按时间排序子分支
         const sortedChildren = children
@@ -98,8 +97,6 @@ const ConversationTimeline = ({
         const branches = sortedChildren.map((childMsg, branchIndex) => {
           // 找到每个分支的所有后续消息
           const branchMessages = findBranchMessages(childMsg.uuid, msgDict, parentChildren);
-          
-          console.log(`  分支${branchIndex}: ${childMsg.uuid.substring(0, 8)} -> ${branchMessages.length}条消息`);
           
           return {
             branchIndex,
@@ -121,9 +118,6 @@ const ConversationTimeline = ({
       }
     });
     
-    console.log(`总共发现 ${branchPoints.size} 个分支点`);
-    console.log("=== 分支分析完成 ===");
-    
     return { branchPoints, msgDict, parentChildren };
   }, [messages, format, conversation]);
   
@@ -140,17 +134,14 @@ const ConversationTimeline = ({
   // 初始化分支过滤器 - 修复状态同步问题
   useEffect(() => {
     if (branchAnalysis.branchPoints.size > 0 && branchFilters.size === 0 && !showAllBranches) {
-      console.log("=== 初始化分支过滤器 ===");
       const initialFilters = new Map();
       
       // 为每个分支点设置默认选择（第一个分支）
       branchAnalysis.branchPoints.forEach((branchData, branchPointUuid) => {
         initialFilters.set(branchPointUuid, 0);
-        console.log(`设置分支点 ${branchPointUuid.substring(0, 8)} 默认选择: 分支0`);
       });
       
       setBranchFilters(initialFilters);
-      console.log("=== 分支过滤器初始化完成 ===");
     }
   }, [branchAnalysis.branchPoints, branchFilters.size, showAllBranches]);
 
@@ -161,30 +152,31 @@ const ConversationTimeline = ({
     }
   }, [isDesktop, messages, selectedMessageIndex]);
 
-  // 计算当前应该显示的消息 - 修复版本，支持显示全部分支
+  // 计算当前应该显示的消息 - 修复版本，更可靠的分支过滤逻辑
   const displayMessages = useMemo(() => {
-    console.log("=== 开始计算显示消息 ===");
-    
     // 如果开启了显示全部分支模式，显示所有消息
     if (showAllBranches) {
-      console.log("显示全部分支模式，显示所有消息");
       return messages;
     }
     
-    // 如果没有分支过滤器，显示所有消息
-    if (branchFilters.size === 0) {
-      console.log("无分支过滤，显示所有消息");
+    // 如果没有分支点，显示所有消息
+    if (branchAnalysis.branchPoints.size === 0) {
       return messages;
     }
 
-    // 收集所有被选中分支的消息UUID
-    const visibleMessageUuids = new Set();
+    // 如果分支过滤器未初始化，暂时显示所有消息
+    if (branchFilters.size === 0) {
+      return messages;
+    }
+
+    // 新的分支过滤逻辑：更简单和可靠
+    const visibleMessages = [];
     
-    // 首先添加所有没有分支的消息（在分支点之前的消息）
-    messages.forEach(msg => {
-      let shouldInclude = true;
+    // 按索引顺序处理消息
+    for (const msg of messages) {
+      let shouldShow = true;
       
-      // 检查这个消息是否在某个分支点之后
+      // 检查此消息是否受到任何分支点的影响
       for (const [branchPointUuid, selectedBranchIndex] of branchFilters.entries()) {
         const branchData = branchAnalysis.branchPoints.get(branchPointUuid);
         if (!branchData) continue;
@@ -192,33 +184,39 @@ const ConversationTimeline = ({
         const branchPoint = branchData.branchPoint;
         const selectedBranch = branchData.branches[selectedBranchIndex];
         
-        // 如果这个消息在分支点之后，需要检查是否在选中的分支中
+        // 如果消息在分支点之后
         if (msg.index > branchPoint.index) {
-          const isInSelectedBranch = selectedBranch.messages.some(branchMsg => branchMsg.uuid === msg.uuid);
-          if (!isInSelectedBranch) {
-            shouldInclude = false;
-            break;
+          // 检查这个消息是否属于选中的分支
+          const belongsToSelectedBranch = selectedBranch.messages.some(
+            branchMsg => branchMsg.uuid === msg.uuid
+          );
+          
+          if (!belongsToSelectedBranch) {
+            // 检查是否属于其他分支
+            const belongsToAnyBranch = branchData.branches.some(
+              branch => branch.messages.some(branchMsg => branchMsg.uuid === msg.uuid)
+            );
+            
+            // 如果属于其他分支，则不显示
+            if (belongsToAnyBranch) {
+              shouldShow = false;
+              break;
+            }
+            // 如果不属于任何分支，可能是共同的后续消息，继续显示
           }
         }
       }
       
-      if (shouldInclude) {
-        visibleMessageUuids.add(msg.uuid);
+      if (shouldShow) {
+        visibleMessages.push(msg);
       }
-    });
+    }
     
-    // 过滤消息
-    const filtered = messages.filter(msg => visibleMessageUuids.has(msg.uuid));
-    
-    console.log(`显示 ${filtered.length} / ${messages.length} 条消息`);
-    console.log("=== 消息计算完成 ===");
-    
-    return filtered;
+    return visibleMessages;
   }, [messages, branchFilters, branchAnalysis, showAllBranches]);
 
   // 处理分支切换
   const handleBranchSwitch = (branchPointUuid, newBranchIndex) => {
-    console.log(`切换分支: ${branchPointUuid.substring(0, 8)} -> 分支${newBranchIndex}`);
     setShowAllBranches(false); // 退出显示全部分支模式
     setBranchFilters(prev => {
       const newFilters = new Map(prev);
@@ -229,7 +227,6 @@ const ConversationTimeline = ({
 
   // 切换显示全部分支
   const handleShowAllBranches = () => {
-    console.log(`切换显示全部分支: ${!showAllBranches}`);
     const newShowAllBranches = !showAllBranches;
     setShowAllBranches(newShowAllBranches);
     
@@ -239,23 +236,62 @@ const ConversationTimeline = ({
     } else {
       // 退出全部分支模式，自动重置排序
       if (hasCustomSort && sortActions?.resetSort) {
-        console.log("退出显示全部模式，自动重置排序");
         sortActions.resetSort();
       }
     }
   };
 
+  // 计算最后更新时间 - 从消息中获取最新的时间戳
+  const getLastUpdatedTime = () => {
+    if (!displayMessages || displayMessages.length === 0) {
+      return '未知时间';
+    }
+    
+    // 获取最后一条消息的时间戳
+    const lastMessage = displayMessages[displayMessages.length - 1];
+    if (lastMessage && lastMessage.timestamp) {
+      try {
+        const date = new Date(lastMessage.timestamp);
+        return date.toLocaleDateString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch {
+        return lastMessage.timestamp;
+      }
+    }
+    
+    return '未知时间';
+  };
+
   // 根据格式获取对话信息
   const getConversationInfo = () => {
+    const lastUpdated = getLastUpdatedTime();
+    
     if (conversation) {
+      // 从conversation对象推断正确的平台信息
+      let platformName = 'Claude';
+      if (data && data.meta_info) {
+        if (data.meta_info.platform === 'gemini') {
+          platformName = 'Gemini';
+        } else if (data.meta_info.platform === 'notebooklm') {
+          platformName = 'NotebookLM';
+        } else if (data.meta_info.platform === 'aistudio') {
+          platformName = 'Google AI Studio'; // 新增对AI Studio的支持
+        }
+      }
+      
       return {
         name: conversation.name || '未命名对话',
-        model: conversation.model || 'Claude',
+        model: conversation.model || platformName,
         created_at: conversation.created_at || '未知时间',
-        updated_at: conversation.updated_at || '未知时间',
+        updated_at: lastUpdated, // 使用计算出的最后更新时间
         is_starred: conversation.is_starred || false,
         messageCount: displayMessages.length,
-        platform: 'Claude'
+        platform: platformName // 使用推断出的平台名称
       };
     }
     
@@ -263,40 +299,51 @@ const ConversationTimeline = ({
     
     const metaInfo = data.meta_info || {};
     
+    // 智能平台检测 - 优先根据meta_info里的platform字段判断
+    let platformName = 'Claude'; // 默认平台
+    if (metaInfo.platform === 'gemini') {
+      platformName = 'Gemini';
+    } else if (metaInfo.platform === 'notebooklm') {
+      platformName = 'NotebookLM';
+    } else if (metaInfo.platform === 'aistudio') {
+      platformName = 'Google AI Studio'; // 新增对AI Studio的支持
+    } else if (format === 'gemini_notebooklm') {
+      // 如果格式是gemini_notebooklm但meta_info中没有明确platform，根据其他特征判断
+      platformName = 'Gemini'; // 默认为Gemini
+    }
+    
     switch (format) {
       case 'claude':
         return {
           name: metaInfo.title || data?.meta_info?.title || '未命名对话',
           model: getModelFromMessages() || 'Claude',
           created_at: metaInfo.created_at || data?.meta_info?.created_at || '未知时间',
-          updated_at: metaInfo.updated_at || data?.meta_info?.updated_at || '未知时间',
+          updated_at: lastUpdated,
           is_starred: data.raw_data?.is_starred || false,
           messageCount: displayMessages.length,
-          platform: 'Claude'
+          platform: 'Claude' // Claude格式确定是Claude平台
         };
       
       case 'gemini_notebooklm':
-        const platform = metaInfo.platform === 'gemini' ? 'Gemini' : 
-                         metaInfo.platform === 'notebooklm' ? 'NotebookLM' : 'AI助手';
         return {
           name: metaInfo.title || 'AI对话记录',
-          model: platform,
+          model: platformName,
           created_at: metaInfo.created_at || '未知时间',
-          updated_at: metaInfo.updated_at || '未知时间',
+          updated_at: lastUpdated,
           is_starred: false,
           messageCount: displayMessages.length,
-          platform: platform
+          platform: platformName // 使用智能检测的平台名称
         };
       
       default:
         return {
           name: metaInfo.title || '未知对话',
-          model: '未知',
+          model: platformName,
           created_at: metaInfo.created_at || '未知时间',
-          updated_at: metaInfo.updated_at || '未知时间',
+          updated_at: lastUpdated,
           is_starred: false,
           messageCount: displayMessages.length,
-          platform: '未知'
+          platform: platformName
         };
     }
   };
@@ -322,11 +369,30 @@ const ConversationTimeline = ({
     }
   };
 
+  // 过滤图片引用的工具函数（增强版）
+  const filterImageReferences = (text) => {
+    if (!text) return '';
+    // 匹配各种图片引用格式：
+    // [图片1: filename] [附件: filename] [image: filename] [attachment: filename]
+    // [图片1]、[图片2]等简单格式
+    return text
+      .replace(/\[(?:图片|附件|图像|image|attachment)\d*\s*[:：]\s*[^\]]+\]/gi, '')
+      .replace(/\[(?:图片|附件|图像|image|attachment)\d+\]/gi, '')
+      .replace(/\[图片1\]/gi, '') // 特别处理[图片1]
+      .replace(/\[图片2\]/gi, '') // 特别处理[图片2]
+      .replace(/\[图片3\]/gi, '') // 特别处理[图片3]
+      .replace(/\[图片4\]/gi, '') // 特别处理[图片4]
+      .replace(/\[图片5\]/gi, '') // 特别处理[图片5]
+      .trim(); // 移除首尾空格
+  };
+
   // 获取消息预览
   const getPreview = (text, maxLength = 200) => {
     if (!text) return '';
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+    // 先过滤图片引用
+    const filteredText = filterImageReferences(text);
+    if (filteredText.length <= maxLength) return filteredText;
+    return filteredText.substring(0, maxLength) + '...';
   };
 
   // 检查标记状态
@@ -336,17 +402,31 @@ const ConversationTimeline = ({
 
   // 获取平台特定的头像
   const getPlatformAvatar = (sender, platform) => {
-    if (sender === 'human') return '👤';
+    if (sender === 'human') {
+      return '👤'; // 保持人类头像为emoji
+    }
     
-    switch (platform?.toLowerCase()) {
-      case 'claude':
-        return '🤖';
+    // AI助手使用PlatformIcon
+    return (
+      <PlatformIcon 
+        platform={platform?.toLowerCase() || 'claude'} 
+        format={getFormatFromPlatform(platform)} 
+        size={20} 
+        style={{ backgroundColor: 'transparent' }}
+      />
+    );
+  };
+  
+  // 根据平台推断格式（用于PlatformIcon）
+  const getFormatFromPlatform = (platform) => {
+    switch(platform?.toLowerCase()) {
       case 'gemini':
-        return '✨';
+      case 'google ai studio':
+      case 'aistudio':
       case 'notebooklm':
-        return '📚';
+        return 'gemini_notebooklm';
       default:
-        return '🤖';
+        return 'claude';
     }
   };
 
@@ -355,6 +435,9 @@ const ConversationTimeline = ({
     switch (platform?.toLowerCase()) {
       case 'gemini':
         return 'platform-gemini';
+      case 'google ai studio':
+      case 'aistudio':
+        return 'platform-gemini'; // AI Studio使用和Gemini相同的样式
       case 'notebooklm':
         return 'platform-notebooklm';
       default:
@@ -552,7 +635,33 @@ const ConversationTimeline = ({
                       </div>
                       
                       <div className="timeline-body">
-                        {getPreview(msg.display_text)}
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            // 简化的markdown组件，适合预览
+                            p: ({ children }) => <span>{children}</span>,
+                            h1: ({ children }) => <strong>{children}</strong>,
+                            h2: ({ children }) => <strong>{children}</strong>,
+                            h3: ({ children }) => <strong>{children}</strong>,
+                            h4: ({ children }) => <strong>{children}</strong>,
+                            h5: ({ children }) => <strong>{children}</strong>,
+                            h6: ({ children }) => <strong>{children}</strong>,
+                            strong: ({ children }) => <strong>{children}</strong>,
+                            em: ({ children }) => <em>{children}</em>,
+                            code: ({ inline, children }) => inline ? 
+                              <code className="inline-code">{children}</code> : 
+                              <code>{children}</code>,
+                            pre: ({ children }) => <span>{children}</span>,
+                            blockquote: ({ children }) => <span>" {children} "</span>,
+                            a: ({ children }) => <span>{children}</span>,
+                            // 修复列表中markdown渲染问题
+                            ul: ({ children }) => <span>{children}</span>,
+                            ol: ({ children }) => <span>{children}</span>,
+                            li: ({ children }) => <span>• {children}</span>
+                          }}
+                        >
+                          {getPreview(msg.display_text)}
+                        </ReactMarkdown>
                       </div>
                       
                       <div className="timeline-footer">
@@ -561,6 +670,20 @@ const ConversationTimeline = ({
                           <div className="timeline-tag">
                             <span>💭</span>
                             <span>有思考过程</span>
+                          </div>
+                        )}
+                        {/* 支持多格式的图片检测 */}
+                        {(msg.images && msg.images.length > 0) && (
+                          <div className="timeline-tag">
+                            <span>🖼️</span>
+                            <span>{msg.images.length}张图片</span>
+                          </div>
+                        )}
+                        {/* Gemini格式的图片检测（如果没有images字段） */}
+                        {!msg.images && msg.attachments && msg.attachments.length > 0 && (
+                          <div className="timeline-tag">
+                            <span>🖼️</span>
+                            <span>{msg.attachments.length}个附件</span>
                           </div>
                         )}
                         {msg.artifacts && msg.artifacts.length > 0 && (
@@ -642,28 +765,6 @@ const ConversationTimeline = ({
         {isDesktop && (
           <div className="timeline-right-panel">
             <div className="message-detail-container">
-              {/* 标签页 */}
-              <div className="detail-tabs">
-                <button 
-                  className={`tab ${activeTab === 'content' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('content')}
-                >
-                  内容
-                </button>
-                <button 
-                  className={`tab ${activeTab === 'thinking' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('thinking')}
-                >
-                  思考过程
-                </button>
-                <button 
-                  className={`tab ${activeTab === 'artifacts' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('artifacts')}
-                >
-                  Artifacts
-                </button>
-              </div>
-              
               {/* 消息详情 */}
               <div className="detail-content">
                 <MessageDetail
@@ -671,6 +772,8 @@ const ConversationTimeline = ({
                   selectedMessageIndex={selectedMessageIndex}
                   activeTab={activeTab}
                   searchQuery={searchQuery}
+                  format={format}
+                  onTabChange={setActiveTab}
                 />
               </div>
               

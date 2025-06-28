@@ -1,14 +1,15 @@
 # Lyra's Exporter
 
-一个用于获取、管理和导出Claude、Gemini、NotebookLM对话记录的工具。
+一个用于获取、管理和导出Claude、Gemini、NotebookLM对话记录的工具，功能是目前最全的。
 
 ## 功能特性
 
-- 📁 **文件管理**: 加载多个Claude对话JSON文件
-- 🔍 **智能搜索**: 搜索消息内容、思考过程和Artifacts
-- 🏷️ **标记系统**: 标记消息为完成、重要或删除
-- 📤 **灵活导出**: 导出为Markdown格式，支持Obsidian元数据
+- 📁 **文件管理**: 加载多个Claude、Gemini、NotebookLM、Google AI Studio平台的对话JSON文件
+- 🔍 **智能查找**: 搜索消息内容，查找有图片附件、思考过程和创建了 Artifacts 的对话
+- 🏷️ **标记系统**: 标记消息为完成、重要或删除，并在导出时保留特定格式
+- 📤 **灵活导出**: 导出为Markdown格式，支持批量导出
 - 🌳 **分支检测**: 自动检测和显示对话分支
+- ✉️  **全功能读取**: 智能识别图片附件、思考过程、Markdown 语法
 
 ## 快速开始
 
@@ -36,7 +37,7 @@ npm start
 - **Claude 单个对话** (`claude`) - 包含单个对话的所有消息
 - **Claude 对话列表** (`claude_conversations`) - 仅包含对话摘要的列表
 - **Claude 完整导出** (`claude_full_export`) - 包含多个完整对话的导出文件
-- **Gemini/NotebookLM** (`gemini_notebooklm`) - 支持 Gemini 和 NotebookLM 的对话格式
+- **Gemini/NotebookLM ** (`gemini_notebooklm`) - 支持 Gemini、NotebookLM 以及 Google AI Studio 的对话格式
 
 ### 2. 主要功能模块
 

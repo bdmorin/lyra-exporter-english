@@ -29,9 +29,9 @@ const ThemeSwitcher = () => {
     <button 
       className="theme-switcher"
       onClick={toggleTheme}
-      title={theme === 'dark' ? '切换到马卡龙主题' : '切换到暗色主题'}
+      title={theme === 'dark' ? '切换到浅色主题' : '切换到暗色主题'}
     >
-      {theme === 'dark' ? '🌙' : '🧁'}
+      {theme === 'dark' ? '🐻' : '🐻‍❄️'}
     </button>
   );
 };

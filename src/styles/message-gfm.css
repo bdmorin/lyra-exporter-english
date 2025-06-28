@@ -579,3 +579,258 @@
     gap: 0.5rem;
   }
 }
+
+/* =================== 图片显示样式 =================== */
+/* 添加到 message-gfm.css 文件末尾 */
+
+/* 图片容器 */
+.message-images {
+  margin: 20px 0;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+.message-images h4 {
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* 图片网格布局 */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* 单个图片容器 */
+.image-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.image-container:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-primary);
+}
+
+/* 图片包装器 */
+.image-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 75%; /* 4:3 宽高比 */
+  background: var(--bg-primary);
+  cursor: pointer;
+}
+
+.image-wrapper img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform var(--transition-fast);
+}
+
+.image-wrapper:hover img {
+  transform: scale(1.05);
+}
+
+/* 图片加载错误 */
+.image-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 16px;
+}
+
+.error-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+.error-text {
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.error-filename {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  word-break: break-all;
+}
+
+/* 图片信息 */
+.image-info {
+  padding: 12px;
+  border-top: 1px solid var(--border-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.image-name {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.image-size {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* 大图预览模式（点击图片时） */
+.image-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  cursor: zoom-out;
+  padding: 20px;
+}
+
+.image-preview-modal img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+}
+
+/* 加载动画 */
+.image-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 3px solid var(--border-primary);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: imageLoading 0.8s linear infinite;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.image-wrapper.loading::before {
+  opacity: 1;
+}
+
+@keyframes imageLoading {
+  to { transform: rotate(360deg); }
+}
+
+/* 单列布局（小图时） */
+@media (max-width: 600px) {
+  .image-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .message-images {
+    padding: 12px;
+    margin: 16px 0;
+  }
+  
+  .image-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  
+  .image-info {
+    padding: 8px;
+  }
+  
+  .image-name {
+    font-size: 0.8rem;
+  }
+  
+  .image-size {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+  }
+}
+
+/* 暗色主题优化 */
+[data-theme="dark"] .message-images {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .image-container {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .image-wrapper {
+  background: #1a1a1a;
+}
+
+/* 亮色主题优化 */
+[data-theme="light"] .message-images {
+  background: #f8f9fa;
+  border-color: #e9ecef;
+}
+
+[data-theme="light"] .image-container {
+  background: white;
+  border-color: #e9ecef;
+}
+
+[data-theme="light"] .image-wrapper {
+  background: #f5f5f5;
+}
+
+/* 无障碍访问 */
+.image-wrapper:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* 打印样式 */
+@media print {
+  .message-images {
+    break-inside: avoid;
+  }
+  
+  .image-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .image-wrapper {
+    padding-top: 100%; /* 打印时使用正方形 */
+  }
+}
