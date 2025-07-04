@@ -19,6 +19,7 @@ import { useSearch } from './hooks/useSearch';
 import { useMessageSort } from './hooks/useMessageSort';
 import { useConversationFilter } from './hooks/useConversationFilter';
 import { useFileUuid, generateFileCardUuid, generateConversationCardUuid, parseUuid } from './hooks/useFileUuid';
+import { useStarSystem } from './hooks/useStarSystem';
 
 // 工具导入
 import { STORAGE_KEYS } from './utils/constants';
@@ -37,6 +38,9 @@ function App() {
     fileMetadata,
     actions: fileActions 
   } = useFileManager();
+  
+  // 星标系统
+  const { starredConversations, actions: starActions } = useStarSystem();
   
   // 状态管理
   const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
@@ -62,11 +66,11 @@ function App() {
   const fileInputRef = useRef(null);
   const contentAreaRef = useRef(null);
 
-  // 使用统一的UUID管理
-  const currentFileUuid = useFileUuid(viewMode, selectedFileIndex, selectedConversationUuid, processedData);
+  // 使用统一的UUID管理 - 传入files参数
+  const currentFileUuid = useFileUuid(viewMode, selectedFileIndex, selectedConversationUuid, processedData, files);
   const { marks, stats, actions: markActions } = useMarkSystem(currentFileUuid);
 
-  // 创建原始对话列表（用于筛选）
+  // 创建原始对话列表（用于筛选）- 更新以包含星标状态
   const rawConversations = useMemo(() => {
     if (viewMode === 'conversations' && processedData?.format === 'claude_full_export') {
       return processedData.views?.conversationList?.map(conv => ({
@@ -75,11 +79,16 @@ function App() {
         fileIndex: currentFileIndex,
         fileName: files[currentFileIndex]?.name || 'unknown',
         fileFormat: processedData.format,
-        uuid: generateConversationCardUuid(currentFileIndex, conv.uuid)
+        uuid: generateConversationCardUuid(currentFileIndex, conv.uuid, files[currentFileIndex]),
+        // 计算最终的星标状态
+        is_starred: starActions.isStarred(
+          generateConversationCardUuid(currentFileIndex, conv.uuid, files[currentFileIndex]), 
+          conv.is_starred
+        )
       })) || [];
     }
     return [];
-  }, [viewMode, processedData, currentFileIndex, files]);
+  }, [viewMode, processedData, currentFileIndex, files, starActions]);
 
   // 对话筛选功能（仅用于claude_full_export格式）
   const {
@@ -100,8 +109,6 @@ function App() {
       const fileData = isCurrentFile ? processedData : null;
       const metadata = fileMetadata[file.name] || {};
       
-
-      
       // 优先使用当前加载的数据，其次使用元数据
       const format = fileData?.format || metadata.format || 'unknown';
       const messageCount = fileData?.chat_history?.length || metadata.messageCount || 0;
@@ -112,24 +119,24 @@ function App() {
       // 获取模型信息
       const model = fileData?.meta_info?.model || metadata.model || (format === 'claude' ? '' : 'Claude');
       
-cards.push({
-  type: 'file',
-  uuid: generateFileCardUuid(fileIndex),
-  name: metadata.title ? metadata.title.replace('.json', '') : file.name.replace('.json', ''),
-  fileName: file.name,
-  fileIndex,
-  isCurrentFile,
-  fileData,
-  format,
-  model,
-  messageCount,
-  conversationCount,
-  created_at: metadata.created_at || (file.lastModified ? new Date(file.lastModified).toISOString() : null),
-  platform: metadata.platform || 'claude',
-  summary: format === 'claude_full_export' ? 
-    `${conversationCount}个对话，${messageCount}条消息` :
-    (format !== 'unknown' ? `${messageCount}条消息的对话` : '点击加载文件内容...')
-});
+      cards.push({
+        type: 'file',
+        uuid: generateFileCardUuid(fileIndex, file),
+        name: metadata.title ? metadata.title.replace('.json', '') : file.name.replace('.json', ''),
+        fileName: file.name,
+        fileIndex,
+        isCurrentFile,
+        fileData,
+        format,
+        model,
+        messageCount,
+        conversationCount,
+        created_at: metadata.created_at || (file.lastModified ? new Date(file.lastModified).toISOString() : null),
+        platform: metadata.platform || 'claude',
+        summary: format === 'claude_full_export' ? 
+          `${conversationCount}个对话，${messageCount}条消息` :
+          (format !== 'unknown' ? `${messageCount}条消息的对话` : '点击加载文件内容...')
+      });
     });
     
     // 如果当前文件是claude_full_export格式，展示筛选后的对话卡片
@@ -219,7 +226,11 @@ cards.push({
       }
     } else if (card.type === 'conversation') {
       // 点击对话卡片
-      const { fileIndex, conversationUuid } = parseUuid(card.uuid);
+      const parsed = parseUuid(card.uuid);
+      // 需要从卡片信息中获取fileIndex，因为parseUuid现在返回的是fileHash
+      const fileIndex = card.fileIndex;
+      const conversationUuid = parsed.conversationUuid;
+      
       setSelectedFileIndex(fileIndex);
       setSelectedConversationUuid(conversationUuid);
       setViewMode('timeline');
@@ -280,7 +291,10 @@ cards.push({
     }
   };
 
-
+  // 星标切换处理
+  const handleStarToggle = (conversationUuid, nativeIsStarred) => {
+    starActions.toggleStar(conversationUuid, nativeIsStarred);
+  };
 
   // 获取所有文件的标记统计（改进版）
   const getAllMarksStats = useCallback(() => {
@@ -291,7 +305,7 @@ cards.push({
     // 遍历所有文件获取标记数据
     files.forEach((file, index) => {
       // 普通文件的标记
-      const fileUuid = generateFileCardUuid(index);
+      const fileUuid = generateFileCardUuid(index, file);
       const storageKey = `marks_${fileUuid}`;
       
       try {
@@ -315,7 +329,7 @@ cards.push({
         const conversations = processedData.views?.conversationList || [];
         
         conversations.forEach(conv => {
-          const convUuid = generateConversationCardUuid(index, conv.uuid);
+          const convUuid = generateConversationCardUuid(index, conv.uuid, file);
           const convStorageKey = `marks_${convUuid}`;
           
           try {
@@ -345,37 +359,7 @@ cards.push({
     };
   }, [files, processedData, currentFileIndex]);
 
-  // 调试函数 - 检查标记数据
-  const debugMarksData = useCallback(() => {
-    console.log('=== 标记数据调试信息 ===');
-    console.log('当前视图模式:', viewMode);
-    console.log('当前文件索引:', currentFileIndex);
-    console.log('选中的文件索引:', selectedFileIndex);
-    console.log('选中的对话UUID:', selectedConversationUuid);
-    console.log('计算出的currentFileUuid:', currentFileUuid);
-    console.log('');
-    
-    console.log('localStorage中的所有marks数据:');
-    const marksData = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('marks_')) {
-        const value = localStorage.getItem(key);
-        try {
-          marksData[key] = JSON.parse(value || '{}');
-        } catch (e) {
-          marksData[key] = value;
-        }
-      }
-    }
-    console.table(marksData);
-    
-    console.log('');
-    console.log('当前文件标记统计 (stats):', stats);
-    console.log('所有文件标记统计:', getAllMarksStats());
-  }, [viewMode, currentFileIndex, selectedFileIndex, selectedConversationUuid, currentFileUuid, stats, getAllMarksStats]);
-  
-  // 获取统计数据
+  // 获取统计数据 - 更新以包含星标统计
   const getStats = () => {
     const allMarksStats = getAllMarksStats();
     
@@ -385,11 +369,13 @@ cards.push({
       
       if (conversationCards.length > 0) {
         // 在claude_full_export的对话网格模式
+        const starStats = starActions.getStarStats(conversationCards);
         return {
           totalMessages: conversationCards.reduce((sum, conv) => sum + (conv.messageCount || 0), 0),
           conversationCount: conversationCards.length,
           fileCount: files.length,
-          markedCount: allMarksStats.total
+          markedCount: allMarksStats.total,
+          starredCount: starStats.totalStarred
         };
       } else {
         // 在文件网格模式 - 统计当前已加载文件的真实数据
@@ -414,7 +400,8 @@ cards.push({
           totalMessages,
           conversationCount: totalConversations,
           fileCount: files.length,
-          markedCount: allMarksStats.total
+          markedCount: allMarksStats.total,
+          starredCount: 0 // 文件模式没有星标
         };
       }
     } else {
@@ -424,7 +411,8 @@ cards.push({
         totalMessages: messages.length,
         conversationCount: 1,
         fileCount: files.length,
-        markedCount: stats.total // 使用当前文件的标记统计
+        markedCount: stats.total, // 使用当前文件的标记统计
+        starredCount: currentConversation?.is_starred ? 1 : 0
       };
     }
   };
@@ -472,67 +460,27 @@ cards.push({
       case 'operated':
         // 导出所有有操作的文件
         for (const fileUuid of operatedFiles) {
-          const { fileIndex, conversationUuid } = parseUuid(fileUuid);
+          // 这里需要特殊处理，因为我们现在使用的是hash而不是index
+          // 需要通过比较所有文件的hash来找到对应的文件
+          let targetFile = null;
+          let targetFileIndex = -1;
           
-          if (conversationUuid && processedData?.format === 'claude_full_export') {
-            // 处理对话级别的标记
-            if (fileIndex === currentFileIndex) {
-              // 如果是当前文件的对话，获取该对话的消息
-              const conversationMessages = processedData.chat_history?.filter(msg => 
-                msg.conversation_uuid === conversationUuid && !msg.is_conversation_header
-              ) || [];
-              
-              if (conversationMessages.length > 0) {
-                const conversation = processedData.views?.conversationList?.find(c => c.uuid === conversationUuid);
-                
-                // 获取该对话的标记数据
-                const convMarks = {
-                  completed: new Set(),
-                  important: new Set(),
-                  deleted: new Set()
-                };
-                
-                try {
-                  const markData = localStorage.getItem(`marks_${fileUuid}`);
-                  if (markData) {
-                    const parsed = JSON.parse(markData);
-                    convMarks.completed = new Set(parsed.completed || []);
-                    convMarks.important = new Set(parsed.important || []);
-                    convMarks.deleted = new Set(parsed.deleted || []);
-                  }
-                } catch (err) {
-                  console.error(`获取对话 ${conversation?.name} 的标记失败:`, err);
-                }
-                
-                dataToExport.push({
-                  data: {
-                    ...processedData,
-                    chat_history: conversationMessages,
-                    meta_info: {
-                      ...processedData.meta_info,
-                      title: conversation?.name || '未命名对话'
-                    }
-                  },
-                  fileName: `${conversation?.name || 'conversation'}.json`,
-                  marks: convMarks
-                });
-              }
+          files.forEach((file, index) => {
+            const testUuid = generateFileCardUuid(index, file);
+            if (fileUuid.includes(testUuid) || fileUuid === testUuid) {
+              targetFile = file;
+              targetFileIndex = index;
             }
-          } else if (fileIndex !== null && files[fileIndex]) {
-            // 处理文件级别的标记
-            const file = files[fileIndex];
+          });
+          
+          if (targetFile && targetFileIndex !== -1) {
+            // 处理文件导出...
             try {
-              const text = await file.text();
+              const text = await targetFile.text();
               const jsonData = JSON.parse(text);
               const { extractChatData, detectBranches } = await import('./utils/fileParser');
-              let data = extractChatData(jsonData, file.name);
+              let data = extractChatData(jsonData, targetFile.name);
               data = detectBranches(data);
-              
-              // 如果是当前文件且有自定义排序，使用排序后的消息
-              let messagesToExport = data.chat_history || [];
-              if (fileIndex === currentFileIndex && hasCustomSort) {
-                messagesToExport = sortedMessages;
-              }
               
               // 获取该文件的标记数据
               const fileMarks = {
@@ -550,19 +498,16 @@ cards.push({
                   fileMarks.deleted = new Set(parsed.deleted || []);
                 }
               } catch (err) {
-                console.error(`获取文件 ${file.name} 的标记失败:`, err);
+                console.error(`获取文件标记失败:`, err);
               }
               
               dataToExport.push({
-                data: {
-                  ...data,
-                  chat_history: messagesToExport
-                },
-                fileName: file.name,
+                data,
+                fileName: targetFile.name,
                 marks: fileMarks
               });
             } catch (err) {
-              console.error(`导出文件 ${file.name} 失败:`, err);
+              console.error(`导出文件 ${targetFile.name} 失败:`, err);
             }
           }
         }
@@ -593,7 +538,7 @@ cards.push({
               deleted: new Set()
             };
             
-            const fileUuid = generateFileCardUuid(i);
+            const fileUuid = generateFileCardUuid(i, file);
             try {
               const markData = localStorage.getItem(`marks_${fileUuid}`);
               if (markData) {
@@ -722,7 +667,7 @@ cards.push({
 
   const searchStats = getSearchResultData();
 
-  // 获取当前对话的信息（用于ConversationTimeline组件）
+  // 获取当前对话的信息（用于ConversationTimeline组件）- 更新以包含星标状态
   const currentConversation = useMemo(() => {
     if (viewMode === 'timeline' && selectedFileIndex !== null) {
       if (selectedConversationUuid && processedData?.format === 'claude_full_export') {
@@ -730,27 +675,33 @@ cards.push({
         const conversation = processedData.views?.conversationList?.find(
           conv => conv.uuid === selectedConversationUuid
         );
-        return conversation ? {
-          ...conversation,
-          uuid: generateConversationCardUuid(selectedFileIndex, conversation.uuid)
-        } : null;
+        if (conversation && files[selectedFileIndex]) {
+          const convUuid = generateConversationCardUuid(selectedFileIndex, conversation.uuid, files[selectedFileIndex]);
+          return {
+            ...conversation,
+            uuid: convUuid,
+            // 计算最终的星标状态
+            is_starred: starActions.isStarred(convUuid, conversation.is_starred)
+          };
+        }
+        return null;
       } else {
         // 普通文件
         const fileCard = allCards.find(card => 
-        card.type === 'file' && card.fileIndex === selectedFileIndex
-      );
-      // 确保使用正确的对话标题
-      if (fileCard && selectedFileIndex === currentFileIndex && processedData) {
-        return {
-          ...fileCard,
-          name: processedData.meta_info?.title || fileCard.name
-        };
-      }
+          card.type === 'file' && card.fileIndex === selectedFileIndex
+        );
+        // 确保使用正确的对话标题
+        if (fileCard && selectedFileIndex === currentFileIndex && processedData) {
+          return {
+            ...fileCard,
+            name: processedData.meta_info?.title || fileCard.name
+          };
+        }
         return fileCard;
       }
     }
     return null;
-  }, [viewMode, selectedFileIndex, selectedConversationUuid, processedData, allCards]);
+  }, [viewMode, selectedFileIndex, selectedConversationUuid, processedData, allCards, files, currentFileIndex, starActions]);
 
   return (
     <div className="app-redesigned">
@@ -773,7 +724,6 @@ cards.push({
           <nav className="navbar-redesigned">
             <div className="navbar-left">
               <div className="logo">
-                <span className="logo-icon">🐬</span>
                 <span className="logo-text">Lyra Exporter</span>
               </div>
               
@@ -815,6 +765,17 @@ cards.push({
               >
                 📤 导出
               </button>
+              
+              {/* 在对话网格模式下显示星标管理按钮 */}
+              {isFullExportConversationMode && (
+                <button 
+                  className="btn-secondary small"
+                  onClick={() => starActions.clearAllStars()}
+                  title="重置所有星标为原始状态"
+                >
+                  ⭐ 恢复原始
+                </button>
+              )}
             </div>
           </nav>
 
@@ -829,7 +790,6 @@ cards.push({
                   <div className="current-file-info">
                     <span className="current-file-label">当前文件:</span>
                     <span className="current-file-name">{currentFile.name}</span>
-    
                   </div>
                 )}
                 
@@ -850,6 +810,13 @@ cards.push({
                     <div className="stat-value">{getStats().markedCount}</div>
                     <div className="stat-label">标记消息</div>
                   </div>
+                  {/* 在对话网格模式下显示星标统计 */}
+                  {isFullExportConversationMode && (
+                    <div className="stat-card">
+                      <div className="stat-value">{getStats().starredCount}</div>
+                      <div className="stat-label">星标对话</div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -876,6 +843,8 @@ cards.push({
                     onConversationSelect={handleCardSelect}
                     onFileRemove={handleFileRemove}
                     onFileAdd={() => fileInputRef.current?.click()}
+                    onStarToggle={isFullExportConversationMode ? handleStarToggle : null}
+                    starredConversations={starredConversations}
                     showFileInfo={false}
                     isFileMode={allCards.some(card => card.type === 'file')}
                     showFileManagement={true}
@@ -965,6 +934,9 @@ cards.push({
                     selectedMessageIndex={selectedMessageIndex}
                     activeTab={activeTab}
                     searchQuery={query}
+                    format={processedData?.format}
+                    onTabChange={setActiveTab}
+                    showTabs={false} // 模态框中不再显示内部标签页
                   />
                 </div>
                 <div className="modal-footer">
@@ -1202,6 +1174,14 @@ cards.push({
                       完成 {getAllMarksStats().completed} · 重要 {getAllMarksStats().important} · 删除 {getAllMarksStats().deleted}
                     </span>
                   </div>
+                  {isFullExportConversationMode && (
+                    <div className="info-row">
+                      <span className="label">星标统计:</span>
+                      <span className="value">
+                        {starActions.getStarStats(allCards.filter(card => card.type === 'conversation')).totalStarred} 个星标对话
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="modal-buttons">

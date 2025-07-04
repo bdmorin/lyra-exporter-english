@@ -499,71 +499,71 @@ const ConversationTimeline = ({
           
           {/* 对话信息卡片 */}
           {conversationInfo && (
-            <div className="conversation-info-card">
-              <h2>
-                {conversationInfo.name} 
-                {conversationInfo.is_starred && ' ⭐'}
-                <span className="platform-badge">{conversationInfo.platform}</span>
-              </h2>
-              <div className="info-grid">
-                <div className="info-item">
-                  <span className="info-label">模型/平台</span>
-                  <span className="info-value">{conversationInfo.model}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">创建时间</span>
-                  <span className="info-value">{conversationInfo.created_at}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">显示消息数</span>
-                  <span className="info-value">{conversationInfo.messageCount}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">最后更新</span>
-                  <span className="info-value">{conversationInfo.updated_at}</span>
-                </div>
-              </div>
-              
-              {/* 分支统计和控制 */}
-              {branchAnalysis.branchPoints.size > 0 && (
-                <div className="export-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>🔀 检测到 {branchAnalysis.branchPoints.size} 个分支点</span>
-                  <div className="timeline-controls" style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                      className="btn-secondary small"
-                      onClick={handleShowAllBranches}
-                      title={showAllBranches ? "只显示选中分支" : "显示全部分支"}
-                    >
-                      {showAllBranches ? '🔍 筛选分支' : '📋 显示全部'}
-                    </button>
-                    {/* 排序控制 - 只在显示全部分支时显示 */}
-                    {showAllBranches && sortActions && (
-                      !hasCustomSort ? (
-                        <button 
-                          className="btn-secondary small"
-                          onClick={() => {
-                            // 启用排序
-                            sortActions.enableSort();
-                          }}
-                          title="启用消息排序"
-                        >
-                          🔄 启用排序
-                        </button>
-                      ) : (
-                        <button 
-                          className="btn-secondary small"
-                          onClick={() => sortActions.resetSort()}
-                          title="重置排序"
-                        >
-                          🔄 重置排序
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+  <div className="conversation-info-card">
+    <h2>
+      {conversationInfo.name} 
+      {conversationInfo.is_starred && ' ⭐'}
+      <span className="platform-badge">{conversationInfo.platform}</span>
+    </h2>
+    <div className="info-grid">
+      <div className="info-item">
+        <span className="info-label">模型/平台</span>
+        <span className="info-value">{conversationInfo.model}</span>
+      </div>
+      <div className="info-item">
+        <span className="info-label">创建时间</span>
+        <span className="info-value">{conversationInfo.created_at}</span>
+      </div>
+      <div className="info-item">
+        <span className="info-label">显示消息数</span>
+        <span className="info-value">{conversationInfo.messageCount}</span>
+      </div>
+      <div className="info-item">
+        <span className="info-label">最后更新</span>
+        <span className="info-value">{conversationInfo.updated_at}</span>
+      </div>
+    </div>
+    
+    {/* 分支统计和控制 */}
+    {branchAnalysis.branchPoints.size > 0 && (
+      <div className="export-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>🔀 检测到 {branchAnalysis.branchPoints.size} 个分支点</span>
+        <div className="timeline-controls" style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className="btn-secondary small"
+            onClick={handleShowAllBranches}
+            title={showAllBranches ? "只显示选中分支" : "显示全部分支"}
+          >
+            {showAllBranches ? '🔍 筛选分支' : '📋 显示全部'}
+          </button>
+          {/* 排序控制 - 只在显示全部分支时显示 */}
+          {showAllBranches && sortActions && (
+            !hasCustomSort ? (
+              <button 
+                className="btn-secondary small"
+                onClick={() => {
+                  // 启用排序
+                  sortActions.enableSort();
+                }}
+                title="启用消息排序"
+              >
+                🔄 启用排序
+              </button>
+            ) : (
+              <button 
+                className="btn-secondary small"
+                onClick={() => sortActions.resetSort()}
+                title="重置排序"
+              >
+                🔄 重置排序
+              </button>
+            )
           )}
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
           {/* 时间线 */}
           <div className="timeline">

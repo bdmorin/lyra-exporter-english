@@ -1,5 +1,4 @@
-// components/ConversationGrid.js - 混合版本
-// 结合了版本二的内部简化，同时恢复使用 App.js 传递的显示逻辑
+// components/ConversationGrid.js - 支持手动星标版本
 import React from 'react';
 import PlatformIcon from './PlatformIcon';
 
@@ -8,6 +7,8 @@ const ConversationGrid = ({
   onConversationSelect, 
   onFileRemove = null,
   onFileAdd = null,
+  onStarToggle = null, // 新增：星标切换回调
+  starredConversations = new Map(), // 新增：星标状态
   showFileInfo = false,
   isFileMode = false,
   showFileManagement = false,
@@ -149,6 +150,16 @@ const ConversationGrid = ({
 
     return stats;
   };
+  
+  // 检查对话是否已星标（考虑手动星标）
+  const isStarred = (item) => {
+    // 如果有手动星标状态，使用手动状态
+    if (starredConversations.has(item.uuid)) {
+      return starredConversations.get(item.uuid);
+    }
+    // 否则使用原生星标状态
+    return item.is_starred || false;
+  };
 
   return (
     <div className="conversations-grid">
@@ -160,6 +171,8 @@ const ConversationGrid = ({
         
         const isSelected = item.type === 'file' ? item.isCurrentFile : 
                            (selectedConversation === item.uuid);
+        
+        const starred = isStarred(item);
 
         return (
           <div 
@@ -170,7 +183,6 @@ const ConversationGrid = ({
             <div className="tile-header">
               <div className="tile-title">
                 <span>{item.name || '未命名'}</span>
-                {item.is_starred && <span className="star">⭐</span>}
                 {item.type === 'file' && item.isCurrentFile && (
                   <span className="current-badge">当前</span>
                 )}
@@ -179,19 +191,36 @@ const ConversationGrid = ({
                 )}
               </div>
               
-              {((item.type === 'file' && onFileRemove) || 
-                (item.type === 'conversation' && showFileManagement && onFileRemove)) && (
-                <button
-                  className="file-close-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFileRemove(item.fileIndex);
-                  }}
-                  title={item.type === 'file' ? '关闭文件' : '关闭当前文件'}
-                >
-                  ×
-                </button>
-              )}
+              <div className="tile-actions">
+                {/* 星标按钮 - 仅对话卡片显示 */}
+                {item.type === 'conversation' && onStarToggle && (
+                  <button
+                    className={`star-btn ${starred ? 'starred' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStarToggle(item.uuid, item.is_starred);
+                    }}
+                    title={starred ? '取消星标' : '添加星标'}
+                  >
+                    {starred ? '⭐' : '☆'}
+                  </button>
+                )}
+                
+                {/* 关闭按钮 */}
+                {((item.type === 'file' && onFileRemove) || 
+                  (item.type === 'conversation' && showFileManagement && onFileRemove)) && (
+                  <button
+                    className="file-close-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFileRemove(item.fileIndex);
+                    }}
+                    title={item.type === 'file' ? '关闭文件' : '关闭当前文件'}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
             
             <div className="tile-meta">

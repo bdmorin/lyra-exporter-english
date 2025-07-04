@@ -1,4 +1,4 @@
-// components/MessageDetail.js
+// components/MessageDetail.js - 修复版
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,13 +7,19 @@ import { getImageDisplayData } from '../utils/fileParser';
 const MessageDetail = ({ 
   processedData, 
   selectedMessageIndex, 
-  activeTab, 
+  activeTab = 'content', // 提供默认值
   searchQuery,
-  format, // 新增格式参数
-  onTabChange // 新增标签页切换回调
+  format, 
+  onTabChange, // 可选的标签页切换回调
+  showTabs = true // 新增属性，控制是否显示标签页
 }) => {
   const contentRef = useRef(null);
   const [imageLoadErrors, setImageLoadErrors] = useState({});
+  const [internalActiveTab, setInternalActiveTab] = useState(activeTab);
+  
+  // 使用内部状态管理activeTab，如果没有提供onTabChange
+  const currentActiveTab = onTabChange ? activeTab : internalActiveTab;
+  const handleTabChange = onTabChange || setInternalActiveTab;
   
   // 获取当前选中的消息
   const getCurrentMessage = () => {
@@ -28,18 +34,15 @@ const MessageDetail = ({
   // 过滤图片引用的工具函数（增强版）
   const filterImageReferences = (text) => {
     if (!text) return '';
-    // 匹配各种图片引用格式：
-    // [图片1: filename] [附件: filename] [image: filename] [attachment: filename]
-    // [图片1]、[图片2]等简单格式
     return text
       .replace(/\[(?:图片|附件|图像|image|attachment)\d*\s*[:：]\s*[^\]]+\]/gi, '')
       .replace(/\[(?:图片|附件|图像|image|attachment)\d+\]/gi, '')
-      .replace(/\[图片1\]/gi, '') // 特别处理[图片1]
-      .replace(/\[图片2\]/gi, '') // 特别处理[图片2]
-      .replace(/\[图片3\]/gi, '') // 特别处理[图片3]
-      .replace(/\[图片4\]/gi, '') // 特别处理[图片4]
-      .replace(/\[图片5\]/gi, '') // 特别处理[图片5]
-      .trim(); // 移除首尾空格
+      .replace(/\[图片1\]/gi, '')
+      .replace(/\[图片2\]/gi, '')
+      .replace(/\[图片3\]/gi, '')
+      .replace(/\[图片4\]/gi, '')
+      .replace(/\[图片5\]/gi, '')
+      .trim();
   };
 
   // 根据格式决定显示哪些标签页
@@ -62,10 +65,10 @@ const MessageDetail = ({
   // 自动调整activeTab，确保它在可用标签中
   useEffect(() => {
     const availableTabIds = availableTabs.map(tab => tab.id);
-    if (availableTabIds.length > 0 && !availableTabIds.includes(activeTab)) {
-      onTabChange && onTabChange('content'); // 默认切换到内容标签
+    if (availableTabIds.length > 0 && !availableTabIds.includes(currentActiveTab)) {
+      handleTabChange('content'); // 默认切换到内容标签
     }
-  }, [availableTabs, activeTab, onTabChange]);
+  }, [availableTabs, currentActiveTab, handleTabChange]);
 
   // 清除图片错误状态当消息改变时
   useEffect(() => {
@@ -74,7 +77,7 @@ const MessageDetail = ({
 
   // 自定义渲染组件，用于搜索高亮
   const MarkdownComponents = {
-    // 自定义文本渲染器，添加搜索高亮
+    // ... 保持原有的MarkdownComponents不变
     p: ({ children, ...props }) => {
       if (typeof children === 'string' && searchQuery) {
         const highlightedText = highlightSearchText(children, searchQuery);
@@ -83,7 +86,6 @@ const MessageDetail = ({
       return <p {...props}>{children}</p>;
     },
     
-    // 自定义列表项渲染器
     li: ({ children, ...props }) => {
       if (typeof children === 'string' && searchQuery) {
         const highlightedText = highlightSearchText(children, searchQuery);
@@ -92,7 +94,6 @@ const MessageDetail = ({
       return <li {...props}>{children}</li>;
     },
     
-    // 自定义标题渲染器
     h1: ({ children, ...props }) => {
       if (typeof children === 'string' && searchQuery) {
         const highlightedText = highlightSearchText(children, searchQuery);
@@ -141,20 +142,17 @@ const MessageDetail = ({
       return <h6 {...props}>{children}</h6>;
     },
 
-    // 自定义代码块渲染器
     pre: ({ children, ...props }) => (
       <pre {...props} style={{ overflowX: 'auto' }}>
         {children}
       </pre>
     ),
 
-    // 自定义行内代码渲染器
     code: ({ inline, className, children, ...props }) => {
       if (inline) {
         return <code className="inline-code" {...props}>{children}</code>;
       }
       
-      // 代码块
       const match = /language-(\w+)/.exec(className || '');
       const language = match ? match[1] : '';
       
@@ -169,7 +167,6 @@ const MessageDetail = ({
       );
     },
 
-    // 自定义链接渲染器
     a: ({ href, children, ...props }) => (
       <a 
         href={href} 
@@ -181,12 +178,10 @@ const MessageDetail = ({
       </a>
     ),
 
-    // 自定义引用块渲染器
     blockquote: ({ children, ...props }) => (
       <blockquote {...props}>{children}</blockquote>
     ),
 
-    // 自定义表格渲染器
     table: ({ children, ...props }) => (
       <div style={{ overflowX: 'auto' }}>
         <table {...props}>{children}</table>
@@ -200,24 +195,6 @@ const MessageDetail = ({
     
     const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     return text.replace(regex, '<mark>$1</mark>');
-  };
-
-  // 处理搜索高亮的递归函数
-  const processChildrenForHighlight = (children) => {
-    if (typeof children === 'string') {
-      return searchQuery ? highlightSearchText(children, searchQuery) : children;
-    }
-    
-    if (Array.isArray(children)) {
-      return children.map((child, index) => {
-        if (typeof child === 'string') {
-          return searchQuery ? highlightSearchText(child, searchQuery) : child;
-        }
-        return child;
-      });
-    }
-    
-    return children;
   };
 
   // 渲染图片
@@ -235,9 +212,7 @@ const MessageDetail = ({
             const errorKey = `${selectedMessageIndex}-${index}`;
             const hasError = imageLoadErrors[errorKey];
             let finalSrc = imageData.src;
-            // 判断这是否是一个base64图片，并且没有"data:"前缀
             if (imageData.isBase64 && !finalSrc.startsWith('data:')) {
-              // 从原始image对象获取MIME类型，如果不存在，则默认使用 'image/png'
               const mediaType = image.media_type || 'image/png'; 
               finalSrc = `data:${mediaType};base64,${finalSrc}`;
             }
@@ -252,7 +227,7 @@ const MessageDetail = ({
                     </div>
                   ) : (
                     <img 
-                      src={finalSrc} // <--- 使用修复后的src
+                      src={finalSrc}
                       alt={imageData.alt}
                       title={imageData.title}
                       onError={() => {
@@ -262,7 +237,6 @@ const MessageDetail = ({
                         }));
                       }}
                       onClick={() => {
-                        // 在新标签页打开图片时，同样使用修复后的src
                         if (imageData.isBase64) {
                           const newWindow = window.open();
                           newWindow.document.write(`
@@ -427,18 +401,10 @@ const MessageDetail = ({
       return <div className="placeholder">选择一条消息查看详情</div>;
     }
 
-    switch (activeTab) {
+    switch (currentActiveTab) {
       case 'content':
         return (
           <div className="message-content">
-            <div className="message-header">
-              <h3>{currentMessage.sender_label}</h3>
-              <span className="timestamp">{currentMessage.timestamp}</span>
-              {currentMessage.branch_level > 0 && (
-                <span className="branch-indicator">↳{currentMessage.branch_level} 分支</span>
-              )}
-            </div>
-            
             {renderImages(currentMessage.images || currentMessage.attachments)}
             
             <div className="message-text">
@@ -456,7 +422,6 @@ const MessageDetail = ({
         );
 
       case 'thinking':
-        // 只有Claude格式才显示思考过程
         if (format !== 'claude' && format !== 'claude_full_export' && format) {
           return <div className="placeholder">此格式不支持思考过程</div>;
         }
@@ -478,7 +443,6 @@ const MessageDetail = ({
         );
 
       case 'artifacts':
-        // 只有Claude格式才显示Artifacts
         if (format !== 'claude' && format !== 'claude_full_export' && format) {
           return <div className="placeholder">此格式不支持Artifacts</div>;
         }
@@ -495,14 +459,14 @@ const MessageDetail = ({
 
   return (
     <div className="message-detail" ref={contentRef}>
-      {/* 标签页 - 只有在有多个可用标签时才显示 */}
-      {availableTabs.length > 1 && (
+      {/* 标签页 - 只在showTabs为true且有多个可用标签时才显示 */}
+      {showTabs && availableTabs.length > 1 && (
         <div className="detail-tabs">
           {availableTabs.map(tab => (
             <button 
               key={tab.id}
-              className={`tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => onTabChange && onTabChange(tab.id)}
+              className={`tab ${currentActiveTab === tab.id ? 'active' : ''}`}
+              onClick={() => handleTabChange(tab.id)}
             >
               {tab.label}
             </button>

@@ -5,34 +5,37 @@ import { FileText, Heart, BookOpen, MessageCircle, Tag, Download, Database, Info
 const TauriCloseButton = () => {
   const handleClose = async () => {
     try {
-      // 检查是否在Tauri环境中
-      if (window.__TAURI__ && window.__TAURI__.window) {
-        const { getCurrent } = window.__TAURI__.window;
-        await getCurrent().close();
+      // 使用动态导入确保Tauri API正确加载
+      if (typeof window !== 'undefined' && window.__TAURI__) {
+        const { appWindow } = await import('@tauri-apps/api/window');
+        await appWindow.close();
       } else {
-        // 在浏览器环境中的处理
-        if (window.history.length > 1) {
-          // 如果有历史记录，返回上一页
-          window.history.back();
-        } else {
-          // 尝试关闭窗口，如果失败则显示提示
-          try {
-            window.close();
-            // 如果window.close()没有效果，延迟显示提示
-            setTimeout(() => {
-              if (!window.closed) {
-                alert('请手动关闭此标签页或按 Ctrl+W (Mac: Cmd+W)');
-              }
-            }, 100);
-          } catch (error) {
-            alert('请手动关闭此标签页或按 Ctrl+W (Mac: Cmd+W)');
-          }
-        }
+      // 浏览器环境处理
+      console.log('不在Tauri环境中，尝试浏览器关闭方法');
+      
+      // 在浏览器环境下，尝试关闭标签页但不破坏页面
+      try {
+      window.close();
+        // 如果关闭失败，给用户友好提示但不隐藏页面
+      setTimeout(() => {
+      if (!window.closed) {
+        alert('无法自动关闭标签页，请使用 Ctrl+W (或 Cmd+W) 手动关闭');
+      }
+      }, 200);
+      } catch (error) {
+      console.warn('浏览器安全限制，无法自动关闭标签页:', error);
+      alert('由于浏览器安全限制，无法自动关闭标签页\n请使用快捷键：\n• Windows/Linux: Ctrl+W\n• Mac: Cmd+W');
+      }
       }
     } catch (error) {
       console.error('关闭窗口失败:', error);
-      // 如果所有方法都失败，显示提示
-      alert('请手动关闭此标签页或按 Ctrl+W (Mac: Cmd+W)');
+      // 提供用户友好的反馈
+      const isDesktop = window.__TAURI__ !== undefined;
+      if (isDesktop) {
+        alert('关闭窗口时遇到问题，请尝试使用窗口右上角的关闭按钮');
+      } else {
+        alert('关闭操作失败，请手动关闭此标签页 (Ctrl+W 或 Cmd+W)');
+      }
     }
   };
 
@@ -335,7 +338,7 @@ const FeatureCard = ({ icon, title, description, color }) => {
 const WelcomePage = ({ handleLoadClick }) => {
   // 模拟打字效果
   const [welcomeText, setWelcomeText] = useState("");
-  const fullText = "记录你与Claude、Gemini的每一刻灵感与温度";
+  const fullText = "记录Claude、Gemini的每一刻灵感与温度";
   
   useEffect(() => {
     let i = 0;
@@ -368,7 +371,7 @@ const WelcomePage = ({ handleLoadClick }) => {
         </h1>
         
         <p className="text-lg text-gray-700 mb-8 max-w-3xl mx-auto">
-          欢迎使用Lyra's Exporter，凝聚着我和Claude珍贵记忆的聊天对话管理工具。导入管理和Claude的所有对话，批量加载多个聊天对话，帮你保存灵感时刻，让每一次对话的价值得到延续。
+          欢迎使用Lyra's Exporter，Laumss 和 Claude 一起制作的对话管理工具。支持批量加载多对话，帮你保存灵感时刻，让每一次对话的价值得到延续。
         </p>
       </div>
       
