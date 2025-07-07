@@ -1,6 +1,12 @@
-// hook/useMarkSystem.js
-import { useState, useCallback, useEffect } from 'react';
-import { MARK_TYPES, STORAGE_KEYS } from '../utils/constants';
+// hooks/useMarkSystem.js
+import { useState, useEffect, useCallback } from 'react';
+
+// 标记类型常量
+const MARK_TYPES = {
+  COMPLETED: 'completed',
+  IMPORTANT: 'important',
+  DELETED: 'deleted'
+};
 
 export const useMarkSystem = (fileUuid) => {
   const [marks, setMarks] = useState({
@@ -9,136 +15,110 @@ export const useMarkSystem = (fileUuid) => {
     [MARK_TYPES.DELETED]: new Set()
   });
 
-  // 从localStorage加载标记
-  const loadMarks = useCallback(() => {
+  // 从 localStorage 加载标记数据
+  useEffect(() => {
     if (!fileUuid) return;
 
-    try {
-      const savedData = localStorage.getItem(`${STORAGE_KEYS.MARKS_PREFIX}${fileUuid}`);
-      if (savedData) {
+    const storageKey = `marks_${fileUuid}`;
+    const savedData = localStorage.getItem(storageKey);
+    
+    if (savedData) {
+      try {
         const parsed = JSON.parse(savedData);
         setMarks({
           [MARK_TYPES.COMPLETED]: new Set(parsed.completed || []),
           [MARK_TYPES.IMPORTANT]: new Set(parsed.important || []),
           [MARK_TYPES.DELETED]: new Set(parsed.deleted || [])
         });
+      } catch (error) {
+        console.error('Failed to load marks:', error);
       }
-    } catch (error) {
-      console.error('加载标记失败:', error);
     }
-  }, [fileUuid]);
+  }, [fileUuid]); // 只依赖 fileUuid
 
-  // 保存标记到localStorage
-  const saveMarks = useCallback(() => {
+  // 保存标记数据
+  const saveMarks = useCallback((newMarks) => {
     if (!fileUuid) return;
-
-    try {
-      const dataToSave = {
-        completed: Array.from(marks[MARK_TYPES.COMPLETED]),
-        important: Array.from(marks[MARK_TYPES.IMPORTANT]),
-        deleted: Array.from(marks[MARK_TYPES.DELETED]),
-        timestamp: new Date().toISOString()
-      };
-      localStorage.setItem(
-        `${STORAGE_KEYS.MARKS_PREFIX}${fileUuid}`,
-        JSON.stringify(dataToSave)
-      );
-    } catch (error) {
-      console.error('保存标记失败:', error);
-    }
-  }, [fileUuid, marks]);
-
-  // 文件改变时加载标记
-  useEffect(() => {
-    loadMarks();
-  }, [loadMarks]);
-
-  // 标记改变时保存
-  useEffect(() => {
-    if (fileUuid) {
-      saveMarks();
-    }
-  }, [marks, saveMarks, fileUuid]);
+    
+    const storageKey = `marks_${fileUuid}`;
+    const dataToSave = {
+      completed: Array.from(newMarks[MARK_TYPES.COMPLETED]),
+      important: Array.from(newMarks[MARK_TYPES.IMPORTANT]),
+      deleted: Array.from(newMarks[MARK_TYPES.DELETED])
+    };
+    
+    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+  }, [fileUuid]);
 
   // 切换标记
   const toggleMark = useCallback((messageIndex, markType) => {
-    setMarks(prevMarks => {
-      const newMarks = { ...prevMarks };
-      
-      // 创建新的Set以触发更新
-      Object.keys(newMarks).forEach(type => {
-        newMarks[type] = new Set(newMarks[type]);
-      });
+    setMarks(prev => {
+      const newMarks = {
+        ...prev,
+        [markType]: new Set(prev[markType])
+      };
 
-      if (markType === MARK_TYPES.DELETED) {
-        // 删除标记互斥
-        newMarks[MARK_TYPES.COMPLETED].delete(messageIndex);
-        newMarks[MARK_TYPES.IMPORTANT].delete(messageIndex);
-        
-        if (newMarks[MARK_TYPES.DELETED].has(messageIndex)) {
-          newMarks[MARK_TYPES.DELETED].delete(messageIndex);
-        } else {
-          newMarks[MARK_TYPES.DELETED].add(messageIndex);
-        }
+      if (newMarks[markType].has(messageIndex)) {
+        newMarks[markType].delete(messageIndex);
       } else {
-        // 完成和重要标记不能应用于已删除的消息
-        if (newMarks[MARK_TYPES.DELETED].has(messageIndex)) {
-          return prevMarks;
-        }
-
-        if (newMarks[markType].has(messageIndex)) {
-          newMarks[markType].delete(messageIndex);
-        } else {
-          newMarks[markType].add(messageIndex);
-        }
+        newMarks[markType].add(messageIndex);
       }
 
+      saveMarks(newMarks);
       return newMarks;
     });
-  }, []);
+  }, [saveMarks]);
 
   // 批量标记
-  const batchMark = useCallback((messageIndices, markType) => {
-    setMarks(prevMarks => {
-      const newMarks = { ...prevMarks };
-      
-      // 创建新的Set
-      Object.keys(newMarks).forEach(type => {
-        newMarks[type] = new Set(newMarks[type]);
-      });
+  const batchMark = useCallback((messageIndexes, markType, isMarked) => {
+    setMarks(prev => {
+      const newMarks = {
+        ...prev,
+        [markType]: new Set(prev[markType])
+      };
 
-      messageIndices.forEach(index => {
-        if (markType === MARK_TYPES.DELETED) {
-          newMarks[MARK_TYPES.COMPLETED].delete(index);
-          newMarks[MARK_TYPES.IMPORTANT].delete(index);
-          newMarks[MARK_TYPES.DELETED].add(index);
+      messageIndexes.forEach(index => {
+        if (isMarked) {
+          newMarks[markType].add(index);
         } else {
-          if (!newMarks[MARK_TYPES.DELETED].has(index)) {
-            newMarks[markType].add(index);
-          }
+          newMarks[markType].delete(index);
         }
       });
 
+      saveMarks(newMarks);
       return newMarks;
     });
-  }, []);
+  }, [saveMarks]);
 
   // 清除所有标记
   const clearAllMarks = useCallback(() => {
-    setMarks({
+    const emptyMarks = {
       [MARK_TYPES.COMPLETED]: new Set(),
       [MARK_TYPES.IMPORTANT]: new Set(),
       [MARK_TYPES.DELETED]: new Set()
-    });
-  }, []);
+    };
+    
+    setMarks(emptyMarks);
+    saveMarks(emptyMarks);
+  }, [saveMarks]);
 
   // 清除特定类型的标记
   const clearMarksByType = useCallback((markType) => {
-    setMarks(prevMarks => ({
-      ...prevMarks,
-      [markType]: new Set()
-    }));
-  }, []);
+    setMarks(prev => {
+      const newMarks = {
+        ...prev,
+        [markType]: new Set()
+      };
+      
+      saveMarks(newMarks);
+      return newMarks;
+    });
+  }, [saveMarks]);
+
+  // 检查是否已标记
+  const isMarked = useCallback((messageIndex, markType) => {
+    return marks[markType]?.has(messageIndex) || false;
+  }, [marks]);
 
   // 获取标记统计
   const getMarkStats = useCallback(() => {
@@ -152,17 +132,9 @@ export const useMarkSystem = (fileUuid) => {
     };
   }, [marks]);
 
-  // 检查消息是否被标记
-  const isMarked = useCallback((messageIndex, markType) => {
-    return marks[markType]?.has(messageIndex) || false;
-  }, [marks]);
-
   return {
-    // 状态
     marks,
     stats: getMarkStats(),
-    
-    // 操作
     actions: {
       toggleMark,
       batchMark,

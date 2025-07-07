@@ -11,6 +11,7 @@ import ConversationGrid from './components/ConversationGrid';
 import ConversationTimeline from './components/ConversationTimeline';
 import ConversationFilter from './components/ConversationFilter';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import Toast from './components/Toast';
 
 // 自定义Hooks导入
 import { useFileManager } from './hooks/useFileManager';
@@ -21,8 +22,7 @@ import { useConversationFilter } from './hooks/useConversationFilter';
 import { useFileUuid, generateFileCardUuid, generateConversationCardUuid, parseUuid } from './hooks/useFileUuid';
 import { useStarSystem } from './hooks/useStarSystem';
 
-// 工具导入
-import { STORAGE_KEYS } from './utils/constants';
+// 工具导入 import { STORAGE_KEYS } from './utils/constants'; 但是好像重来都没有使用过所以给注释掉了
 
 function App() {
   // 使用自定义hooks
@@ -31,16 +31,15 @@ function App() {
     currentFile, 
     currentFileIndex, 
     processedData, 
-    isLoading, 
-    error,
     showTypeConflictModal,
     pendingFiles,
     fileMetadata,
     actions: fileActions 
   } = useFileManager();
   
-  // 星标系统
-  const { starredConversations, actions: starActions } = useStarSystem();
+  // 星标系统 - 只在 claude_full_export 格式时启用
+  const shouldUseStarSystem = processedData?.format === 'claude_full_export';
+  const { starredConversations, actions: starActions } = useStarSystem(shouldUseStarSystem);
   
   // 状态管理
   const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
@@ -52,6 +51,10 @@ function App() {
   const [showMessageDetail, setShowMessageDetail] = useState(false);
   const [operatedFiles, setOperatedFiles] = useState(new Set());
   const [scrollPositions, setScrollPositions] = useState({});
+  // Toast 状态
+  const [toasts, setToasts] = useState([]);
+  // 新增 error 状态
+  const [error, setError] = useState(null);
   const [exportOptions, setExportOptions] = useState({
     scope: 'current', // 'current' | 'operated' | 'all'
     includeCompleted: false, // 改为false，表示是否"仅"导出已完成
@@ -65,6 +68,22 @@ function App() {
   
   const fileInputRef = useRef(null);
   const contentAreaRef = useRef(null);
+
+  // Toast 管理函数
+  const showToast = useCallback((message, type = 'info', duration = 3000) => {
+    const id = Date.now() + Math.random();
+    const newToast = { id, message, type, duration };
+    setToasts(prev => [...prev, newToast]);
+    
+    // 自动清理
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, duration + 300); // 加上动画时间
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  }, []);
 
   // 使用统一的UUID管理 - 传入files参数
   const currentFileUuid = useFileUuid(viewMode, selectedFileIndex, selectedConversationUuid, processedData, files);
@@ -81,14 +100,16 @@ function App() {
         fileFormat: processedData.format,
         uuid: generateConversationCardUuid(currentFileIndex, conv.uuid, files[currentFileIndex]),
         // 计算最终的星标状态
-        is_starred: starActions.isStarred(
-          generateConversationCardUuid(currentFileIndex, conv.uuid, files[currentFileIndex]), 
+        is_starred: shouldUseStarSystem ? 
+          starActions.isStarred(
+            generateConversationCardUuid(currentFileIndex, conv.uuid, files[currentFileIndex]), 
+            conv.is_starred
+          ) :
           conv.is_starred
-        )
       })) || [];
     }
     return [];
-  }, [viewMode, processedData, currentFileIndex, files, starActions]);
+  }, [viewMode, processedData, currentFileIndex, files, starActions, shouldUseStarSystem]);
 
   // 对话筛选功能（仅用于claude_full_export格式）
   const {
@@ -170,7 +191,7 @@ function App() {
     return [];
   }, [viewMode, allCards, selectedConversationUuid, selectedFileIndex, currentFileIndex, processedData]);
 
-  const { query, results, filteredMessages, actions: searchActions } = useSearch(searchTarget);
+  const { query, filteredMessages, actions: searchActions } = useSearch(searchTarget);
 
   // 消息排序 - 仅在时间线模式下使用
   const timelineMessages = useMemo(() => {
@@ -375,7 +396,7 @@ function App() {
           conversationCount: conversationCards.length,
           fileCount: files.length,
           markedCount: allMarksStats.total,
-          starredCount: starStats.totalStarred
+          starredCount: shouldUseStarSystem ? starStats.totalStarred : 0
         };
       } else {
         // 在文件网格模式 - 统计当前已加载文件的真实数据
@@ -412,13 +433,14 @@ function App() {
         conversationCount: 1,
         fileCount: files.length,
         markedCount: stats.total, // 使用当前文件的标记统计
-        starredCount: currentConversation?.is_starred ? 1 : 0
+        starredCount: (shouldUseStarSystem && currentConversation?.is_starred) ? 1 : 0
       };
     }
   };
 
   // 主题初始化
   useEffect(() => {
+    console.log('[Lyra Exporter] 应用启动，设置主题');
     const savedTheme = localStorage.getItem('app-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     
@@ -430,6 +452,136 @@ function App() {
       }, 100);
     }
   }, []);
+
+  // Lyra's Fetch 脚本集成 - 使用 useCallback 稳定处理函数
+  const handlePostMessage = useCallback(async (event) => {
+    console.log('[Lyra Exporter] 收到任何 postMessage:', {
+      origin: event.origin,
+      type: event.data?.type,
+      source: event.data?.source,
+      hasData: !!event.data
+    });
+    
+    // 安全检查：只接受来自特定域名的消息
+    const allowedOrigins = [
+      'https://claude.ai',
+      'https://pro.easychat.top',
+      'https://gemini.google.com',
+      'https://notebooklm.google.com',
+      'https://aistudio.google.com'
+    ];
+    
+    // 对本地开发放宽限制
+    if (!allowedOrigins.some(origin => event.origin.startsWith(origin)) && 
+        !event.origin.includes('localhost') && 
+        !event.origin.includes('127.0.0.1')) {
+      console.warn('[Lyra Exporter] 拒绝来自未知源的消息:', event.origin);
+      return;
+    }
+    
+    // 处理握手请求
+    if (event.data && event.data.type === 'LYRA_HANDSHAKE' && event.data.source === 'lyra-fetch-script') {
+      console.log('[Lyra Exporter] 收到 Lyra Fetch 脚本的握手请求');
+      
+      try {
+        // 回复准备就绪
+        event.source.postMessage({
+          type: 'LYRA_READY',
+          source: 'lyra-exporter'
+        }, event.origin);
+        
+        console.log('[Lyra Exporter] 已发送 LYRA_READY 响应到:', event.origin);
+      } catch (error) {
+        console.error('[Lyra Exporter] 发送握手响应失败:', error);
+      }
+      return;
+    }
+    
+    // 处理数据加载请求
+    if (event.data && event.data.type === 'LYRA_LOAD_DATA' && event.data.source === 'lyra-fetch-script') {
+      console.log('[Lyra Exporter] 收到 Lyra Fetch 脚本的数据:', {
+        hasContent: !!event.data.data?.content,
+        filename: event.data.data?.filename,
+        contentLength: event.data.data?.content?.length
+      });
+      
+      try {
+        const { content, filename } = event.data.data;
+        
+        if (!content) {
+          throw new Error('没有收到内容数据');
+        }
+        
+        // 将 JSON 字符串转换为 File 对象
+        const jsonData = typeof content === 'string' ? content : JSON.stringify(content);
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const file = new File([blob], filename || 'imported_conversation.json', {
+          type: 'application/json',
+          lastModified: Date.now()
+        });
+        
+        console.log('[Lyra Exporter] 创建的文件对象:', {
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+        
+        // 使用 fileActions.loadFiles 加载文件
+        fileActions.loadFiles([file]);
+        
+        console.log('[Lyra Exporter] 成功加载来自 Lyra Fetch 的数据:', filename);
+        
+        // 显示成功提示
+        showToast(`成功加载来自 Lyra Fetch 的数据: ${filename}`, 'success', 4000);
+        setError(null);
+        
+      } catch (error) {
+        console.error('[Lyra Exporter] 处理 Lyra Fetch 数据时出错:', error);
+        showToast('加载数据失败: ' + error.message, 'error', 5000);
+        setError('加载数据失败: ' + error.message);
+      }
+    }
+  }, [fileActions, showToast, setError]);
+
+  // postMessage 监听器 - 依赖稳定的处理函数
+  useEffect(() => {
+    console.log('[Lyra Exporter] 设置 postMessage 监听器');
+    
+    // 添加事件监听器
+    window.addEventListener('message', handlePostMessage);
+    
+    // 清理函数
+    return () => {
+      console.log('[Lyra Exporter] 移除 postMessage 监听器');
+      window.removeEventListener('message', handlePostMessage);
+    };
+  }, [handlePostMessage]); // 只依赖稳定的处理函数
+
+// 监听文件变化，自动切换到时间线视图
+useEffect(() => {
+  // 检查是否是通过 postMessage 加载的文件
+  if (files.length > 0 && processedData && !error && viewMode === 'conversations') {
+    // 检查最新的文件是否刚刚加载
+    const latestFile = files[files.length - 1];
+    
+    // 如果文件名包含特定标识，说明是从 Lyra Fetch 加载的
+    if (latestFile.name.includes('claude_') || latestFile.name.includes('_export_')) {
+      console.log('[Lyra Exporter] 检测到新加载的对话文件，准备切换视图');
+      
+      // 根据格式决定如何切换
+      if (processedData.format === 'claude_full_export') {
+        // 完整导出格式保持在对话列表
+        console.log('[Lyra Exporter] 完整导出格式，保持在对话列表视图');
+      } else {
+        // 其他格式切换到时间线
+        console.log('[Lyra Exporter] 切换到时间线视图');
+        setSelectedFileIndex(files.length - 1);
+        setSelectedConversationUuid(null);
+        setViewMode('timeline');
+      }
+    }
+  }
+}, [files.length, processedData, error]); // 监听文件数量变化
 
   // 导出功能 - 修改部分
   const handleExport = async () => {
@@ -681,7 +833,9 @@ function App() {
             ...conversation,
             uuid: convUuid,
             // 计算最终的星标状态
-            is_starred: starActions.isStarred(convUuid, conversation.is_starred)
+            is_starred: shouldUseStarSystem ? 
+              starActions.isStarred(convUuid, conversation.is_starred) :
+              conversation.is_starred
           };
         }
         return null;
@@ -701,7 +855,7 @@ function App() {
       }
     }
     return null;
-  }, [viewMode, selectedFileIndex, selectedConversationUuid, processedData, allCards, files, currentFileIndex, starActions]);
+  }, [viewMode, selectedFileIndex, selectedConversationUuid, processedData, allCards, files, currentFileIndex, starActions, shouldUseStarSystem]);
 
   return (
     <div className="app-redesigned">
@@ -767,7 +921,7 @@ function App() {
               </button>
               
               {/* 在对话网格模式下显示星标管理按钮 */}
-              {isFullExportConversationMode && (
+              {isFullExportConversationMode && shouldUseStarSystem && (
                 <button 
                   className="btn-secondary small"
                   onClick={() => starActions.clearAllStars()}
@@ -811,7 +965,7 @@ function App() {
                     <div className="stat-label">标记消息</div>
                   </div>
                   {/* 在对话网格模式下显示星标统计 */}
-                  {isFullExportConversationMode && (
+                  {isFullExportConversationMode && shouldUseStarSystem && (
                     <div className="stat-card">
                       <div className="stat-value">{getStats().starredCount}</div>
                       <div className="stat-label">星标对话</div>
@@ -843,8 +997,8 @@ function App() {
                     onConversationSelect={handleCardSelect}
                     onFileRemove={handleFileRemove}
                     onFileAdd={() => fileInputRef.current?.click()}
-                    onStarToggle={isFullExportConversationMode ? handleStarToggle : null}
-                    starredConversations={starredConversations}
+                    onStarToggle={isFullExportConversationMode && shouldUseStarSystem ? handleStarToggle : null}
+                    starredConversations={shouldUseStarSystem ? starredConversations : new Map()}
                     showFileInfo={false}
                     isFileMode={allCards.some(card => card.type === 'file')}
                     showFileManagement={true}
@@ -1003,6 +1157,17 @@ function App() {
             </div>
           )}
           <ThemeSwitcher />
+
+          {/* Toast 提示 */}
+          {toasts.map(toast => (
+            <Toast
+              key={toast.id}
+              message={toast.message}
+              type={toast.type}
+              duration={toast.duration}
+              onClose={() => removeToast(toast.id)}
+            />
+          ))}
 
           {/* 导出面板 */}
           {showExportPanel && (
@@ -1174,7 +1339,7 @@ function App() {
                       完成 {getAllMarksStats().completed} · 重要 {getAllMarksStats().important} · 删除 {getAllMarksStats().deleted}
                     </span>
                   </div>
-                  {isFullExportConversationMode && (
+                  {isFullExportConversationMode && shouldUseStarSystem && (
                     <div className="info-row">
                       <span className="label">星标统计:</span>
                       <span className="value">

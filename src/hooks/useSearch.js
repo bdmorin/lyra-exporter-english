@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { SEARCH_DEBOUNCE_MS } from '../utils/constants';
+
+// 搜索防抖延迟
+const SEARCH_DEBOUNCE_MS = 300;
 
 export const useSearch = (messages = []) => {
   const [query, setQuery] = useState('');
@@ -112,7 +114,7 @@ export const useSearch = (messages = []) => {
     }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [query, messages, performSearch]);
+  }, [query, messages.length, performSearch]); // 改为监听 messages.length 而不是整个 messages 数组
 
   // 当messages变化且没有搜索时，更新filteredMessages
   useEffect(() => {

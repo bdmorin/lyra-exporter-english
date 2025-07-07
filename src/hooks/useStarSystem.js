@@ -1,124 +1,188 @@
 // hooks/useStarSystem.js
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-export const useStarSystem = () => {
-  // 星标状态存储：Map<conversationUuid, boolean>
+const STAR_STORAGE_PREFIX = 'starred_conversations_';
+const STAR_STORAGE_VERSION = 'v1';
+
+export const useStarSystem = (enabled = true) => {
+  // 存储所有手动设置的星标状态
+  // Map结构: conversationUuid -> boolean (true表示已星标，false表示取消星标)
   const [starredConversations, setStarredConversations] = useState(new Map());
-  
+
   // 从 localStorage 加载星标数据
-  const loadStars = useCallback(() => {
+  useEffect(() => {
+    if (!enabled) return;
+
     try {
-      const savedData = localStorage.getItem('starred_conversations');
+      const storageKey = `${STAR_STORAGE_PREFIX}${STAR_STORAGE_VERSION}`;
+      const savedData = localStorage.getItem(storageKey);
+      
       if (savedData) {
         const parsed = JSON.parse(savedData);
-        setStarredConversations(new Map(Object.entries(parsed)));
+        // 转换为 Map
+        const starMap = new Map(Object.entries(parsed));
+        setStarredConversations(starMap);
+        console.log(`[StarSystem] 加载了 ${starMap.size} 个星标设置`);
       }
     } catch (error) {
-      console.error('加载星标数据失败:', error);
+      console.error('[StarSystem] 加载星标数据失败:', error);
     }
-  }, []);
-  
+  }, [enabled]);
+
   // 保存星标数据到 localStorage
-  const saveStars = useCallback((stars) => {
+  const saveToStorage = useCallback((starMap) => {
+    if (!enabled) return;
+
     try {
-      const dataToSave = Object.fromEntries(stars);
-      localStorage.setItem('starred_conversations', JSON.stringify(dataToSave));
+      const storageKey = `${STAR_STORAGE_PREFIX}${STAR_STORAGE_VERSION}`;
+      // 转换 Map 为普通对象
+      const dataToSave = Object.fromEntries(starMap);
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+      console.log(`[StarSystem] 保存了 ${starMap.size} 个星标设置`);
     } catch (error) {
-      console.error('保存星标数据失败:', error);
+      console.error('[StarSystem] 保存星标数据失败:', error);
     }
-  }, []);
-  
-  // 初始化时加载数据
-  useEffect(() => {
-    loadStars();
-  }, [loadStars]);
-  
-  // 检查对话是否已星标（包括原生星标和手动星标）
+  }, [enabled]);
+
+  // 切换星标状态
+  const toggleStar = useCallback((conversationUuid, nativeIsStarred = false) => {
+    if (!enabled) return;
+
+    setStarredConversations(prev => {
+      const newMap = new Map(prev);
+      
+      // 获取当前的实际星标状态
+      const currentStarred = isStarred(conversationUuid, nativeIsStarred);
+      
+      if (currentStarred) {
+        // 当前是星标状态，需要取消星标
+        if (nativeIsStarred) {
+          // 原生是星标，我们需要记录为 false 来覆盖
+          newMap.set(conversationUuid, false);
+        } else {
+          // 原生不是星标，我们之前设置为 true，现在删除这个设置
+          newMap.delete(conversationUuid);
+        }
+      } else {
+        // 当前不是星标状态，需要添加星标
+        if (!nativeIsStarred) {
+          // 原生不是星标，我们需要记录为 true
+          newMap.set(conversationUuid, true);
+        } else {
+          // 原生是星标但被我们覆盖为 false，现在删除这个覆盖
+          newMap.delete(conversationUuid);
+        }
+      }
+      
+      // 保存到 localStorage
+      saveToStorage(newMap);
+      
+      return newMap;
+    });
+  }, [enabled, saveToStorage]);
+
+  // 检查对话是否被星标（考虑手动覆盖）
   const isStarred = useCallback((conversationUuid, nativeIsStarred = false) => {
-    // 如果有手动设置的星标状态，使用手动状态
+    if (!enabled) return nativeIsStarred;
+
+    // 如果有手动设置，使用手动设置的值
     if (starredConversations.has(conversationUuid)) {
       return starredConversations.get(conversationUuid);
     }
-    // 否则使用原生星标状态
+    
+    // 否则使用原生值
     return nativeIsStarred;
-  }, [starredConversations]);
-  
-  // 切换星标状态
-  const toggleStar = useCallback((conversationUuid, currentNativeState = false) => {
-    setStarredConversations(prev => {
-      const newStars = new Map(prev);
-      
-      // 获取当前显示的星标状态
-      const currentState = isStarred(conversationUuid, currentNativeState);
-      
-      // 设置相反的状态
-      newStars.set(conversationUuid, !currentState);
-      
-      // 保存到 localStorage
-      saveStars(newStars);
-      
-      return newStars;
-    });
-  }, [isStarred, saveStars]);
-  
-  // 批量设置星标
-  const setStarred = useCallback((conversationUuid, starred) => {
-    setStarredConversations(prev => {
-      const newStars = new Map(prev);
-      newStars.set(conversationUuid, starred);
-      saveStars(newStars);
-      return newStars;
-    });
-  }, [saveStars]);
-  
+  }, [enabled, starredConversations]);
+
   // 清除所有手动星标设置（恢复到原生状态）
   const clearAllStars = useCallback(() => {
-    setStarredConversations(new Map());
-    localStorage.removeItem('starred_conversations');
-  }, []);
-  
+    if (!enabled) return;
+
+    const confirmed = window.confirm(
+      '确定要恢复所有对话的原始星标状态吗？\n' +
+      '这将清除您手动设置的所有星标更改。'
+    );
+    
+    if (confirmed) {
+      setStarredConversations(new Map());
+      const storageKey = `${STAR_STORAGE_PREFIX}${STAR_STORAGE_VERSION}`;
+      localStorage.removeItem(storageKey);
+      console.log('[StarSystem] 已清除所有手动星标设置');
+    }
+  }, [enabled]);
+
   // 获取星标统计
-  const getStarStats = useCallback((conversations = []) => {
+  const getStarStats = useCallback((conversations) => {
+    if (!enabled) return { totalStarred: 0, manuallyStarred: 0, manuallyUnstarred: 0 };
+
     let totalStarred = 0;
     let manuallyStarred = 0;
-    let nativeStarred = 0;
-    
+    let manuallyUnstarred = 0;
+
     conversations.forEach(conv => {
-      const uuid = conv.uuid;
-      const nativeState = conv.is_starred || false;
-      const isCurrentlyStarred = isStarred(uuid, nativeState);
+      const nativeIsStarred = conv.is_starred || false;
+      const actualIsStarred = isStarred(conv.uuid, nativeIsStarred);
       
-      if (isCurrentlyStarred) {
+      if (actualIsStarred) {
         totalStarred++;
       }
       
-      if (nativeState) {
-        nativeStarred++;
-      }
-      
-      if (starredConversations.has(uuid) && starredConversations.get(uuid)) {
-        manuallyStarred++;
+      // 统计手动更改
+      if (starredConversations.has(conv.uuid)) {
+        const manualValue = starredConversations.get(conv.uuid);
+        if (manualValue && !nativeIsStarred) {
+          manuallyStarred++;
+        } else if (!manualValue && nativeIsStarred) {
+          manuallyUnstarred++;
+        }
       }
     });
-    
+
     return {
       totalStarred,
       manuallyStarred,
-      nativeStarred
+      manuallyUnstarred
     };
-  }, [starredConversations, isStarred]);
-  
+  }, [enabled, starredConversations, isStarred]);
+
+  // 导出星标数据（用于备份）
+  const exportStarData = useCallback(() => {
+    if (!enabled) return null;
+
+    return {
+      version: STAR_STORAGE_VERSION,
+      timestamp: new Date().toISOString(),
+      data: Object.fromEntries(starredConversations)
+    };
+  }, [enabled, starredConversations]);
+
+  // 导入星标数据（用于恢复）
+  const importStarData = useCallback((data) => {
+    if (!enabled) return false;
+
+    try {
+      if (data && data.version === STAR_STORAGE_VERSION && data.data) {
+        const starMap = new Map(Object.entries(data.data));
+        setStarredConversations(starMap);
+        saveToStorage(starMap);
+        console.log(`[StarSystem] 导入了 ${starMap.size} 个星标设置`);
+        return true;
+      }
+    } catch (error) {
+      console.error('[StarSystem] 导入星标数据失败:', error);
+    }
+    return false;
+  }, [enabled, saveToStorage]);
+
   return {
-    // 状态
     starredConversations,
-    
-    // 操作
     actions: {
-      isStarred,
       toggleStar,
-      setStarred,
+      isStarred,
       clearAllStars,
-      getStarStats
+      getStarStats,
+      exportStarData,
+      importStarData
     }
   };
 };

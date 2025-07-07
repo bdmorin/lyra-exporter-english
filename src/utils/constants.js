@@ -21,6 +21,9 @@ export const DEFAULT_EXPORT_CONFIG = {
   obsidianTags: []
 };
 
+// 搜索防抖延迟（毫秒）
+export const SEARCH_DEBOUNCE_MS = 300;
+
 // UI相关常量
 export const TAB_TYPES = {
   CONTENT: 'content',
@@ -29,11 +32,9 @@ export const TAB_TYPES = {
   JSON: 'json'
 };
 
-// 搜索相关常量
-export const SEARCH_DEBOUNCE_MS = 300;
-
 // 本地存储键名
 export const STORAGE_KEYS = {
   MARKS_PREFIX: 'marks_',
-  USER_SETTINGS: 'user_settings'
+  USER_SETTINGS: 'user_settings',
+  THEME: 'app-theme'
 };

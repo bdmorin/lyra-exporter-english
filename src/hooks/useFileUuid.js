@@ -18,13 +18,16 @@ const generateFileHash = (file) => {
 };
 
 export const useFileUuid = (viewMode, selectedFileIndex, selectedConversationUuid, processedData, files) => {
+  // 只提取需要的属性，避免整个对象的依赖
+  const format = processedData?.format;
+  
   return useMemo(() => {
     // 在时间线模式下
     if (viewMode === 'timeline' && selectedFileIndex !== null && files && files[selectedFileIndex]) {
       const file = files[selectedFileIndex];
       const fileHash = generateFileHash(file);
       
-      if (selectedConversationUuid && processedData?.format === 'claude_full_export') {
+      if (selectedConversationUuid && format === 'claude_full_export') {
         // claude_full_export格式的对话：使用 fileHash-conversationUuid
         return `${fileHash}-${selectedConversationUuid}`;
       } else {
@@ -34,7 +37,7 @@ export const useFileUuid = (viewMode, selectedFileIndex, selectedConversationUui
     }
     
     return null;
-  }, [viewMode, selectedFileIndex, selectedConversationUuid, processedData, files]);
+  }, [viewMode, selectedFileIndex, selectedConversationUuid, format, files]); // 只依赖 format，不依赖整个 processedData
 };
 
 // 生成文件卡片的UUID

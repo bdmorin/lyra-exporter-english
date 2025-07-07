@@ -1,5 +1,5 @@
 // hooks/useFileManager.js
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { extractChatData, detectBranches } from '../utils/fileParser';
 
 export const useFileManager = () => {
@@ -220,6 +220,16 @@ export const useFileManager = () => {
   // 获取当前文件信息
   const currentFile = files[currentFileIndex] || null;
 
+  // 使用 useMemo 稳定 actions 对象，避免不必要的重新渲染
+  const actions = useMemo(() => ({
+    loadFiles,
+    removeFile,
+    switchFile,
+    reorderFiles,
+    confirmReplaceFiles,
+    cancelReplaceFiles
+  }), [loadFiles, removeFile, switchFile, reorderFiles, confirmReplaceFiles, cancelReplaceFiles]);
+
   return {
     // 状态
     files,
@@ -233,13 +243,6 @@ export const useFileManager = () => {
     fileMetadata, // 新增文件元数据
     
     // 操作
-    actions: {
-      loadFiles,
-      removeFile,
-      switchFile,
-      reorderFiles,
-      confirmReplaceFiles,
-      cancelReplaceFiles
-    }
+    actions
   };
 };

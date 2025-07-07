@@ -1,5 +1,5 @@
 // hooks/useMessageSort.js
-// 消息排序Hook
+// 消息排序Hook - 修复版本
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 
@@ -11,11 +11,12 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
   
   // 使用ref来避免无限循环
   const messagesRef = useRef(messages);
-  const prevMessagesLength = useRef(messages.length);
+  const prevFileUuid = useRef(fileUuid);
 
   // 从localStorage加载自定义排序
   useEffect(() => {
-    if (fileUuid) {
+    if (fileUuid && fileUuid !== prevFileUuid.current) {
+      prevFileUuid.current = fileUuid;
       const savedOrder = localStorage.getItem(`message_order_${fileUuid}`);
       if (savedOrder) {
         try {
@@ -23,19 +24,23 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
         } catch (e) {
           console.error('Failed to load message order:', e);
         }
+      } else {
+        setCustomOrder({});
       }
     }
   }, [fileUuid]);
 
-  // 应用自定义排序 - 只在messages真正改变时更新
+  // 应用自定义排序 - 修复版本
   useEffect(() => {
-    // 检查messages是否真正改变了（长度或内容）
-    if (messages.length !== prevMessagesLength.current || 
-        JSON.stringify(messages) !== JSON.stringify(messagesRef.current)) {
+    // 只在messages真正改变时更新
+    const messagesChanged = messages !== messagesRef.current || 
+                          messages.length !== messagesRef.current?.length ||
+                          JSON.stringify(messages.map(m => m.index)) !== JSON.stringify(messagesRef.current?.map(m => m.index));
+    
+    if (messagesChanged) {
       messagesRef.current = messages;
-      prevMessagesLength.current = messages.length;
       
-      if (Object.keys(customOrder).length > 0) {
+      if (Object.keys(customOrder).length > 0 && messages.length > 0) {
         const sorted = [...messages].sort((a, b) => {
           const orderA = customOrder[a.index] ?? a.index;
           const orderB = customOrder[b.index] ?? b.index;
@@ -48,14 +53,13 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     }
   }, [messages, customOrder]);
 
-  // 保存排序到localStorage
+  // 其余代码保持不变...
   const saveOrder = useCallback((newOrder) => {
     if (fileUuid) {
       localStorage.setItem(`message_order_${fileUuid}`, JSON.stringify(newOrder));
     }
   }, [fileUuid]);
 
-  // 重置排序
   const resetSort = useCallback(() => {
     setCustomOrder({});
     setSortedMessages(messagesRef.current);
@@ -64,7 +68,6 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     }
   }, [fileUuid]);
 
-  // 移动消息（上下移动）
   const moveMessage = useCallback((fromIndex, direction) => {
     const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
     
@@ -74,7 +77,6 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     const [movedMessage] = newSortedMessages.splice(fromIndex, 1);
     newSortedMessages.splice(toIndex, 0, movedMessage);
 
-    // 更新自定义排序
     const newOrder = {};
     newSortedMessages.forEach((msg, idx) => {
       newOrder[msg.index] = idx;
@@ -85,10 +87,8 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     saveOrder(newOrder);
   }, [sortedMessages, saveOrder]);
 
-  // 启用排序（创建初始的自定义排序状态）
   const enableSort = useCallback(() => {
     if (Object.keys(customOrder).length === 0 && messagesRef.current.length > 0) {
-      // 创建一个基于当前顺序的排序映射
       const initialOrder = {};
       messagesRef.current.forEach((msg, idx) => {
         initialOrder[msg.index] = idx;
