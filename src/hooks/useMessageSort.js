@@ -46,20 +46,28 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
           const orderB = customOrder[b.index] ?? b.index;
           return orderA - orderB;
         });
-        setSortedMessages(sorted);
+        
+        // 只在排序结果真的不同时更新
+        const currentIndexes = sortedMessages.map(m => m.index).join(',');
+        const newIndexes = sorted.map(m => m.index).join(',');
+        
+        if (currentIndexes !== newIndexes) {
+          setSortedMessages(sorted);
+        }
       } else {
         setSortedMessages(messages);
       }
     }
-  }, [messages, customOrder]);
+  }, [messages, customOrder]); // 移除 sortedMessages 依赖
 
-  // 其余代码保持不变...
+  // 保存排序到localStorage
   const saveOrder = useCallback((newOrder) => {
     if (fileUuid) {
       localStorage.setItem(`message_order_${fileUuid}`, JSON.stringify(newOrder));
     }
   }, [fileUuid]);
 
+  // 重置排序
   const resetSort = useCallback(() => {
     setCustomOrder({});
     setSortedMessages(messagesRef.current);
@@ -68,6 +76,7 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     }
   }, [fileUuid]);
 
+  // 移动消息
   const moveMessage = useCallback((fromIndex, direction) => {
     const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
     
@@ -77,6 +86,7 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     const [movedMessage] = newSortedMessages.splice(fromIndex, 1);
     newSortedMessages.splice(toIndex, 0, movedMessage);
 
+    // 创建新的排序映射
     const newOrder = {};
     newSortedMessages.forEach((msg, idx) => {
       newOrder[msg.index] = idx;
@@ -87,6 +97,51 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     saveOrder(newOrder);
   }, [sortedMessages, saveOrder]);
 
+  // 拖拽开始
+  const dragStart = useCallback((e, index) => {
+    setIsDragging(true);
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.innerHTML);
+  }, []);
+
+  // 拖拽结束
+  const dragEnd = useCallback(() => {
+    setIsDragging(false);
+    setDraggedIndex(null);
+  }, []);
+
+  // 拖拽经过
+  const dragOver = useCallback((e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  // 放置处理
+  const drop = useCallback((e, dropIndex) => {
+    e.preventDefault();
+    
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+    const newSortedMessages = [...sortedMessages];
+    const [movedMessage] = newSortedMessages.splice(draggedIndex, 1);
+    newSortedMessages.splice(dropIndex, 0, movedMessage);
+
+    // 创建新的排序映射
+    const newOrder = {};
+    newSortedMessages.forEach((msg, idx) => {
+      newOrder[msg.index] = idx;
+    });
+
+    setCustomOrder(newOrder);
+    setSortedMessages(newSortedMessages);
+    saveOrder(newOrder);
+    
+    setDraggedIndex(null);
+    setIsDragging(false);
+  }, [draggedIndex, sortedMessages, saveOrder]);
+
+  // 启用排序
   const enableSort = useCallback(() => {
     if (Object.keys(customOrder).length === 0 && messagesRef.current.length > 0) {
       const initialOrder = {};
@@ -99,6 +154,25 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     }
   }, [customOrder, saveOrder]);
 
+  // 获取消息的自定义位置
+  const getMessagePosition = useCallback((messageIndex) => {
+    return customOrder[messageIndex] ?? messageIndex;
+  }, [customOrder]);
+
+  // 批量排序（用于高级排序功能）
+  const batchSort = useCallback((sortFunction) => {
+    const newSortedMessages = [...messagesRef.current].sort(sortFunction);
+    
+    const newOrder = {};
+    newSortedMessages.forEach((msg, idx) => {
+      newOrder[msg.index] = idx;
+    });
+    
+    setCustomOrder(newOrder);
+    setSortedMessages(newSortedMessages);
+    saveOrder(newOrder);
+  }, [saveOrder]);
+
   return {
     sortedMessages,
     customOrder,
@@ -107,7 +181,13 @@ export const useMessageSort = (messages = [], fileUuid = '') => {
     actions: {
       resetSort,
       moveMessage,
-      enableSort
+      enableSort,
+      dragStart,
+      dragEnd,
+      dragOver,
+      drop,
+      getMessagePosition,
+      batchSort
     }
   };
 };

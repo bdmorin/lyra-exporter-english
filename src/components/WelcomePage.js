@@ -1,54 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Heart, BookOpen, MessageCircle, Tag, Download, Database, Info, X } from 'lucide-react';
-
-// Tauri 关闭按钮组件
-const TauriCloseButton = () => {
-  const handleClose = async () => {
-    try {
-      // 使用动态导入确保Tauri API正确加载
-      if (typeof window !== 'undefined' && window.__TAURI__) {
-        const { appWindow } = await import('@tauri-apps/api/window');
-        await appWindow.close();
-      } else {
-      // 浏览器环境处理
-      console.log('不在Tauri环境中，尝试浏览器关闭方法');
-      
-      // 在浏览器环境下，尝试关闭标签页但不破坏页面
-      try {
-      window.close();
-        // 如果关闭失败，给用户友好提示但不隐藏页面
-      setTimeout(() => {
-      if (!window.closed) {
-        alert('无法自动关闭标签页，请使用 Ctrl+W (或 Cmd+W) 手动关闭');
-      }
-      }, 200);
-      } catch (error) {
-      console.warn('浏览器安全限制，无法自动关闭标签页:', error);
-      alert('由于浏览器安全限制，无法自动关闭标签页\n请使用快捷键：\n• Windows/Linux: Ctrl+W\n• Mac: Cmd+W');
-      }
-      }
-    } catch (error) {
-      console.error('关闭窗口失败:', error);
-      // 提供用户友好的反馈
-      const isDesktop = window.__TAURI__ !== undefined;
-      if (isDesktop) {
-        alert('关闭窗口时遇到问题，请尝试使用窗口右上角的关闭按钮');
-      } else {
-        alert('关闭操作失败，请手动关闭此标签页 (Ctrl+W 或 Cmd+W)');
-      }
-    }
-  };
-
-  return (
-    <button
-      onClick={handleClose}
-      className="fixed top-4 right-4 z-50 w-6 h-6 rounded opacity-30 hover:opacity-80 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-all duration-200 text-sm font-medium"
-      title="关闭"
-    >
-      ×
-    </button>
-  );
-};
+import { FileText, MessageCircle, Download, Database, Info} from 'lucide-react';
 
 // 隐私保障说明组件
 const PrivacyAssurance = () => {
@@ -185,7 +136,7 @@ const ScriptInstallGuide = () => {
       >
         <h3 className="text-xl font-bold text-gray-800 flex items-center">
           <Database className="mr-3 h-5 w-5 text-blue-600" />
-          从这里开始，安装一个简单的对话获取脚本
+          开始安装脚本
         </h3>
         <div className="text-blue-600">
           {expanded ? (
@@ -218,6 +169,7 @@ const ScriptInstallGuide = () => {
                   <li><span className="font-medium text-gray-700">整理思路</span> - 将零散的灵感整合成有序知识</li>
                   <li><span className="font-medium text-gray-700">完整保存</span> - 珍藏图片、思考、完整的对话分支</li>
                   <li><span className="font-medium text-gray-700">永久保存</span> - 即使账号失效，重要对话也不会丢失</li>
+                  <li><span className="font-medium text-gray-700">在线读取</span> - 现在可以直接在对话窗口来做整理</li>
                 </ul>
               </div>
             </div>
@@ -359,8 +311,6 @@ const WelcomePage = ({ handleLoadClick }) => {
     <div 
       className="welcome-page flex flex-col items-center w-full px-6 pb-6 overflow-auto scrollable hide-scrollbar non-selectable"
     >
-      {/* Tauri 关闭按钮 */}
-      <TauriCloseButton />
       
       {/* 欢迎区 */}
       <div className="w-full max-w-4xl mt-8 mb-8 text-center">
@@ -371,7 +321,7 @@ const WelcomePage = ({ handleLoadClick }) => {
         </h1>
         
         <p className="text-lg text-gray-700 mb-8 max-w-3xl mx-auto">
-          欢迎使用Lyra's Exporter，Laumss 和 Claude 一起制作的对话管理工具。支持批量加载多对话，帮你保存灵感时刻，让每一次对话的价值得到延续。
+          欢迎使用Lyra's Exporter，Laumss 和 Claude 一起制作的对话管理工具。她支持批量加载多对话，帮你保存灵感时刻，让每一次对话的价值得到延续。
         </p>
       </div>
       
@@ -382,7 +332,7 @@ const WelcomePage = ({ handleLoadClick }) => {
           onClick={handleLoadClick}
         >
           <FileText className="mr-3 h-5 w-5" />
-          Load the JSON
+          加载对话文件
         </button>
       </div>
       <div className="max-w-4xl w-full mb-6">

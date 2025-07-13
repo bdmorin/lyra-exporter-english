@@ -100,16 +100,11 @@ function App() {
         fileFormat: processedData.format,
         uuid: generateConversationCardUuid(currentFileIndex, conv.uuid, files[currentFileIndex]),
         // 计算最终的星标状态
-        is_starred: shouldUseStarSystem ? 
-          starActions.isStarred(
-            generateConversationCardUuid(currentFileIndex, conv.uuid, files[currentFileIndex]), 
-            conv.is_starred
-          ) :
-          conv.is_starred
+        is_starred: conv.is_starred || false // 先使用原生状态，后续在组件内判断
       })) || [];
     }
     return [];
-  }, [viewMode, processedData, currentFileIndex, files, starActions, shouldUseStarSystem]);
+  }, [viewMode, processedData?.format, processedData?.views?.conversationList, currentFileIndex, files]);
 
   // 对话筛选功能（仅用于claude_full_export格式）
   const {
@@ -123,6 +118,12 @@ function App() {
   // 创建统一的卡片列表（包含文件和对话）
   const allCards = useMemo(() => {
     const cards = [];
+    
+    // 如果当前文件是claude_full_export格式，展示筛选后的对话卡片
+    if (viewMode === 'conversations' && processedData?.format === 'claude_full_export') {
+      // 直接返回筛选后的对话卡片
+      return [...filteredConversations];
+    }
     
     // 为每个文件创建一个文件卡片
     files.forEach((file, fileIndex) => {
@@ -160,17 +161,8 @@ function App() {
       });
     });
     
-    // 如果当前文件是claude_full_export格式，展示筛选后的对话卡片
-    if (viewMode === 'conversations' && processedData?.format === 'claude_full_export') {
-      // 清空文件卡片，改为显示筛选后的对话卡片
-      cards.length = 0;
-      filteredConversations.forEach(conv => {
-        cards.push(conv);
-      });
-    }
-    
     return cards;
-  }, [files, currentFileIndex, processedData, viewMode, filteredConversations, fileMetadata]);
+  }, [files, currentFileIndex, processedData?.format, viewMode, filteredConversations, fileMetadata]);
 
   // 搜索功能 - 搜索卡片和消息
   const searchTarget = useMemo(() => {
@@ -178,6 +170,27 @@ function App() {
       return allCards;
     } else if (viewMode === 'timeline' && selectedFileIndex !== null) {
       // 获取选中对话的消息
+      if (selectedFileIndex === currentFileIndex && processedData) {
+        if (processedData.format === 'claude_full_export' && selectedConversationUuid) {
+          // 只提取conversation UUID，避免依赖整个processedData
+          const messages = processedData.chat_history?.filter(msg => 
+            msg.conversation_uuid === selectedConversationUuid && !msg.is_conversation_header
+          ) || [];
+          return messages;
+        } else {
+          return processedData.chat_history || [];
+        }
+      }
+    }
+    return [];
+  }, [viewMode, allCards, selectedConversationUuid, selectedFileIndex, currentFileIndex, processedData?.format, processedData?.chat_history]);
+
+  const { query, filteredMessages, actions: searchActions } = useSearch(searchTarget);
+
+  // 消息排序 - 仅在时间线模式下使用
+  const timelineMessages = useMemo(() => {
+    if (viewMode === 'timeline' && selectedFileIndex !== null) {
+      // 直接从原始数据获取消息，避免依赖searchTarget
       if (selectedFileIndex === currentFileIndex && processedData) {
         if (processedData.format === 'claude_full_export' && selectedConversationUuid) {
           return processedData.chat_history?.filter(msg => 
@@ -189,17 +202,7 @@ function App() {
       }
     }
     return [];
-  }, [viewMode, allCards, selectedConversationUuid, selectedFileIndex, currentFileIndex, processedData]);
-
-  const { query, filteredMessages, actions: searchActions } = useSearch(searchTarget);
-
-  // 消息排序 - 仅在时间线模式下使用
-  const timelineMessages = useMemo(() => {
-    if (viewMode === 'timeline' && Array.isArray(searchTarget)) {
-      return searchTarget;
-    }
-    return [];
-  }, [viewMode, searchTarget]);
+  }, [viewMode, selectedFileIndex, currentFileIndex, processedData?.format, processedData?.chat_history, selectedConversationUuid]);
 
   const { sortedMessages, hasCustomSort, actions: sortActions } = useMessageSort(
     timelineMessages, 
@@ -468,9 +471,21 @@ function App() {
       'https://pro.easychat.top',
       'https://gemini.google.com',
       'https://notebooklm.google.com',
-      'https://aistudio.google.com'
+      'https://aistudio.google.com',
+      'http://localhost:3789',
+      'https://yalums.github.io'
     ];
     
+    // 检查是否是允许的 origin
+    const isAllowedOrigin = allowedOrigins.some(origin => event.origin === origin) ||
+                           event.origin.includes('localhost') || 
+                           event.origin.includes('127.0.0.1');
+    
+    if (!isAllowedOrigin) {
+      console.warn('[Lyra Exporter] 拒绝来自未知源的消息:', event.origin);
+      return;
+    }
+
     // 对本地开发放宽限制
     if (!allowedOrigins.some(origin => event.origin.startsWith(origin)) && 
         !event.origin.includes('localhost') && 
@@ -541,7 +556,7 @@ function App() {
         setError('加载数据失败: ' + error.message);
       }
     }
-  }, [fileActions, showToast, setError]);
+  }, [fileActions, showToast]);
 
   // postMessage 监听器 - 依赖稳定的处理函数
   useEffect(() => {
@@ -557,31 +572,34 @@ function App() {
     };
   }, [handlePostMessage]); // 只依赖稳定的处理函数
 
-// 监听文件变化，自动切换到时间线视图
-useEffect(() => {
-  // 检查是否是通过 postMessage 加载的文件
-  if (files.length > 0 && processedData && !error && viewMode === 'conversations') {
-    // 检查最新的文件是否刚刚加载
-    const latestFile = files[files.length - 1];
-    
-    // 如果文件名包含特定标识，说明是从 Lyra Fetch 加载的
-    if (latestFile.name.includes('claude_') || latestFile.name.includes('_export_')) {
-      console.log('[Lyra Exporter] 检测到新加载的对话文件，准备切换视图');
+  // 监听文件变化，自动切换到时间线视图
+  useEffect(() => {
+    // 检查是否是通过 postMessage 加载的文件
+    if (files.length > 0 && processedData && !error) {
+      // 只在文件刚加载且还在conversations视图时触发
+      const latestFile = files[files.length - 1];
       
-      // 根据格式决定如何切换
-      if (processedData.format === 'claude_full_export') {
-        // 完整导出格式保持在对话列表
-        console.log('[Lyra Exporter] 完整导出格式，保持在对话列表视图');
-      } else {
-        // 其他格式切换到时间线
-        console.log('[Lyra Exporter] 切换到时间线视图');
-        setSelectedFileIndex(files.length - 1);
-        setSelectedConversationUuid(null);
-        setViewMode('timeline');
+      // 检查是否需要自动切换视图
+      if (viewMode === 'conversations' && 
+          currentFileIndex === files.length - 1 && // 确保是最新加载的文件
+          (latestFile.name.includes('claude_') || latestFile.name.includes('_export_'))) {
+        
+        console.log('[Lyra Exporter] 检测到新加载的对话文件，准备切换视图');
+        
+        // 根据格式决定如何切换
+        if (processedData.format === 'claude_full_export') {
+          // 完整导出格式保持在对话列表
+          console.log('[Lyra Exporter] 完整导出格式，保持在对话列表视图');
+        } else {
+          // 其他格式切换到时间线
+          console.log('[Lyra Exporter] 切换到时间线视图');
+          setSelectedFileIndex(files.length - 1);
+          setSelectedConversationUuid(null);
+          setViewMode('timeline');
+        }
       }
     }
-  }
-}, [files.length, processedData, error]); // 监听文件数量变化
+  }, [files.length, currentFileIndex]); // 只监听必要的依赖
 
   // 导出功能 - 修改部分
   const handleExport = async () => {
@@ -717,6 +735,18 @@ useEffect(() => {
         }
         exportFileName = `all_files_${new Date().toISOString().split('T')[0]}.md`;
         break;
+        
+      default:
+        // 添加默认情况处理
+        if (processedData) {
+          dataToExport = [{
+            data: processedData,
+            fileName: currentFile?.name || 'export',
+            marks: marks
+          }];
+          exportFileName = `export_${new Date().toISOString().split('T')[0]}.md`;
+        }
+        break;
     }
     
     if (dataToExport.length === 0) {
@@ -840,22 +870,40 @@ useEffect(() => {
         }
         return null;
       } else {
-        // 普通文件
-        const fileCard = allCards.find(card => 
-          card.type === 'file' && card.fileIndex === selectedFileIndex
-        );
-        // 确保使用正确的对话标题
-        if (fileCard && selectedFileIndex === currentFileIndex && processedData) {
-          return {
-            ...fileCard,
-            name: processedData.meta_info?.title || fileCard.name
+        // 普通文件 - 避免依赖整个allCards数组
+        const file = files[selectedFileIndex];
+        if (file) {
+          const metadata = fileMetadata[file.name] || {};
+          const isCurrentFile = selectedFileIndex === currentFileIndex;
+          const fileData = isCurrentFile ? processedData : null;
+          
+          const fileCard = {
+            type: 'file',
+            uuid: generateFileCardUuid(selectedFileIndex, file),
+            name: fileData?.meta_info?.title || metadata.title || file.name.replace('.json', ''),
+            fileName: file.name,
+            fileIndex: selectedFileIndex,
+            isCurrentFile,
+            format: fileData?.format || metadata.format || 'unknown',
+            model: fileData?.meta_info?.model || metadata.model || '',
+            messageCount: fileData?.chat_history?.length || metadata.messageCount || 0,
+            created_at: metadata.created_at || (file.lastModified ? new Date(file.lastModified).toISOString() : null),
+            platform: metadata.platform || 'claude'
           };
+          
+          // 确保使用正确的对话标题
+          if (selectedFileIndex === currentFileIndex && processedData) {
+            return {
+              ...fileCard,
+              name: processedData.meta_info?.title || fileCard.name
+            };
+          }
+          return fileCard;
         }
-        return fileCard;
       }
     }
     return null;
-  }, [viewMode, selectedFileIndex, selectedConversationUuid, processedData, allCards, files, currentFileIndex, starActions, shouldUseStarSystem]);
+  }, [viewMode, selectedFileIndex, selectedConversationUuid, processedData?.format, processedData?.views?.conversationList, processedData?.meta_info?.title, processedData?.chat_history?.length, files, currentFileIndex, fileMetadata, starActions, shouldUseStarSystem]);
 
   return (
     <div className="app-redesigned">
@@ -939,13 +987,6 @@ useEffect(() => {
             <div className="content-area" ref={contentAreaRef}>
               {/* 统计面板 */}
               <div className="stats-panel">
-                {/* 当前文件信息 */}
-                {viewMode === 'conversations' && files.length > 1 && currentFile && (
-                  <div className="current-file-info">
-                    <span className="current-file-label">当前文件:</span>
-                    <span className="current-file-name">{currentFile.name}</span>
-                  </div>
-                )}
                 
                 <div className="stats-grid">
                   <div className="stat-card">
@@ -990,10 +1031,7 @@ useEffect(() => {
                 {viewMode === 'conversations' ? (
                   /* 卡片网格视图（文件或对话） */
                   <ConversationGrid
-                    conversations={isFullExportConversationMode ? 
-                      (query ? filteredMessages : allCards) : 
-                      (query ? filteredMessages : allCards)
-                    }
+                    conversations={query ? filteredMessages : allCards}
                     onConversationSelect={handleCardSelect}
                     onFileRemove={handleFileRemove}
                     onFileAdd={() => fileInputRef.current?.click()}
@@ -1008,7 +1046,7 @@ useEffect(() => {
                   <ConversationTimeline
                     data={processedData}
                     conversation={currentConversation}
-                    messages={Array.isArray(sortedMessages) && sortedMessages.length > 0 ? 
+                    messages={hasCustomSort && sortedMessages.length > 0 ? 
                       (query ? filteredMessages : sortedMessages) : 
                       (query ? filteredMessages : timelineMessages)
                     }

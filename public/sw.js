@@ -1,24 +1,10 @@
-const CACHE_NAME = 'lyra-exporter-v3';
-const urlsToCache = [
-  '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json',
-  '/logo1024.png'
-];
+const CACHE_NAME = 'lyra-exporter-v5';
 
-// 安装 Service Worker
+// 安装 Service Worker - 不预缓存任何文件
 self.addEventListener('install', event => {
   console.log('[SW] 安装新版本:', CACHE_NAME);
-  // 跳过等待，立即激活
+  // 立即激活，不等待
   self.skipWaiting();
-  
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
-  );
 });
 
 // 激活事件 - 清理旧缓存
@@ -42,7 +28,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-// 获取请求 - 网络优先策略
+// 获取请求 - 网络优先策略，适配 GitHub Pages
 self.addEventListener('fetch', event => {
   // 对于开发环境，总是从网络获取
   if (event.request.url.includes('localhost') || event.request.url.includes('127.0.0.1')) {
@@ -54,14 +40,22 @@ self.addEventListener('fetch', event => {
     return;
   }
   
-  // 生产环境使用缓存
+  // GitHub Pages 生产环境 - 网络优先，缓存备用
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then(response => {
-        if (response) {
-          return response;
+        // 如果网络请求成功，缓存响应（只缓存 GET 请求）
+        if (event.request.method === 'GET' && response && response.status === 200) {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
         }
-        return fetch(event.request);
+        return response;
+      })
+      .catch(() => {
+        // 网络失败时，尝试从缓存返回
+        return caches.match(event.request);
       })
   );
 });

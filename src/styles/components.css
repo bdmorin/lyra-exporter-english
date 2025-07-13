@@ -127,6 +127,9 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: background-color var(--transition-fast), color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-btn:hover {

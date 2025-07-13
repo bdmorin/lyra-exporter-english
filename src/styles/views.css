@@ -132,16 +132,6 @@
 }
 
 /* 统一的徽章样式 */
-.current-badge {
-  background: var(--accent-primary);
-  color: white;
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-}
 
 .star {
   color: #f1e05a;

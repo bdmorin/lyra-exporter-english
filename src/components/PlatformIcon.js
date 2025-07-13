@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 const PLATFORM_ICONS = {
   claude: {
     sources: [
+      'https://www.anthropic.com/favicon.ico',
       'https://claude.ai/favicon.ico',
       'https://www.google.com/s2/favicons?sz=32&domain=claude.ai'
     ],
-    fallback: '🤖',
     // Claude的base64图标（简化版橙色圆圈）
     base64: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiNEOTczMUYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSI+CjxwYXRoIGQ9Ik04IDJDNC42ODYgMiAyIDQuNjg2IDIgOEM2IDExLjMxNCA4LjY4NiAxNCA4IDE0QzExLjMxNCAxNCAxNCA4LjY4NiAxNCA4QzE0IDQuNjg2IDExLjMxNCAyIDggMloiIGZpbGw9IndoaXRlIi8+CjwvcGF0aD4KPC9zdmc+Cjwvc3ZnPg=='
   },

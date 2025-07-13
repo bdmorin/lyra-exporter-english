@@ -234,21 +234,6 @@
   position: relative;
 }
 
-.code-block::before {
-  content: attr(data-language);
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: var(--accent-primary);
-  color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  font-weight: 500;
-  opacity: 0.8;
-}
-
 /* 链接样式 */
 .message-text a,
 .thinking-text a {

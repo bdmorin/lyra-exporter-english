@@ -214,13 +214,13 @@
 
 /* 平台特定的头像颜色 - 使用正确的Google品牌色 */
 .platform-gemini .timeline-avatar.assistant {
-  background: #1A73E8; /* Google蓝 */
-  border-color: #1A73E8;
+  background: #FAFAF7; /* Google蓝 */
+  border-color: #FAFAF7;
 }
 
 .platform-notebooklm .timeline-avatar.assistant {
-  background: #4B5563; /* 灰色 */
-  border-color: #4B5563;
+  background: #000000; /* 灰色 */
+  border-color: #000000;
 }
 
 .sender-info {

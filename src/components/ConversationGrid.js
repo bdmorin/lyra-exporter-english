@@ -183,12 +183,6 @@ const ConversationGrid = ({
             <div className="tile-header">
               <div className="tile-title">
                 <span>{item.name || '未命名'}</span>
-                {item.type === 'file' && item.isCurrentFile && (
-                  <span className="current-badge">当前</span>
-                )}
-                {item.type === 'conversation' && selectedConversation === item.uuid && (
-                  <span className="current-badge">选中</span>
-                )}
               </div>
               
               <div className="tile-actions">
