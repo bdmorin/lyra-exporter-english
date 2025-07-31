@@ -1,5 +1,10 @@
 # CRUSH Configuration
 
+## Project Information
+This is an English translation fork of [Yalums' Lyra's Exporter](https://github.com/Yalums/lyra-exporter).  
+**Original Author:** [Yalums](https://github.com/Yalums)  
+**English Fork Maintainer:** [bdmorin](https://github.com/bdmorin)
+
 ## Build/Test/Lint Commands
 ```bash
 npm install                    # Install dependencies
@@ -40,5 +45,11 @@ npm run tauri:build           # Build Tauri app
 
 ### Error Handling
 - Try-catch blocks for async operations and JSON parsing
-- Graceful fallbacks for missing data (e.g., `dateStr || '未知时间'`)
+- Graceful fallbacks for missing data (e.g., `dateStr || 'Unknown time'`)
 - Error state management in custom hooks
+
+### Translation Guidelines
+- All user-facing text should be in English
+- Maintain original functionality while translating interface
+- Keep console messages in English for debugging
+- Preserve original author attribution in all files

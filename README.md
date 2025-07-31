@@ -1,6 +1,56 @@
-# Lyra's Exporter
+# Lyra's Exporter (English Version)
 
 A comprehensive tool for retrieving, managing, and exporting conversation records from Claude, Gemini, NotebookLM, and other AI platforms.
+
+> **Original Author:** [Yalums](https://github.com/Yalums/lyra-exporter)  
+> **English Fork:** This is an English translation of the original Chinese project  
+> **Live Demo:** https://bdmorin.github.io/lyra-exporter-english
+
+## About This Fork
+
+This is an English translation of Yalums' excellent [Lyra's Exporter](https://github.com/Yalums/lyra-exporter) project. All core functionality remains identical to the original - only the interface language and documentation have been translated to English for international users.
+
+**Full credit goes to [Yalums](https://github.com/Yalums) for creating this amazing tool.**
+
+## Quick Start
+
+### Option 1: Use Online (Recommended)
+1. **Visit:** https://bdmorin.github.io/lyra-exporter-english
+2. **Install the userscript** (see instructions below)
+3. **Export conversations** from Claude, Gemini, etc.
+4. **Load and manage** your conversations in the web interface
+
+### Option 2: Run Locally
+```bash
+# Clone this English fork
+git clone https://github.com/bdmorin/lyra-exporter-english.git
+cd lyra-exporter-english
+
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+```
+
+## Userscript Installation
+
+To export conversations from AI platforms, you'll need to install the companion userscript:
+
+### Step 1: Install a Userscript Manager
+- **Violentmonkey** (recommended): https://violentmonkey.github.io/
+- **Tampermonkey**: https://www.tampermonkey.net/
+
+### Step 2: Install Lyra's Fetch Script
+- **Visit:** https://greasyfork.org/en/scripts/540633-lyra-s-fetch
+- **Click:** "Install this script"
+
+### Step 3: Use with English Interface
+The original script works perfectly with this English version:
+1. Visit Claude, Gemini, Google AI Studio, or NotebookLM
+2. Look for the export button (bottom right corner)
+3. Export your conversations
+4. Load the exported files in https://bdmorin.github.io/lyra-exporter-english
 
 ## Features
 
@@ -10,16 +60,6 @@ A comprehensive tool for retrieving, managing, and exporting conversation record
 - 📤 **Flexible Export**: Export to Markdown format with batch export support
 - 🌳 **Branch Detection**: Automatically detect and display conversation branches
 - ✉️  **Full-Featured Reading**: Intelligently recognize image attachments, thinking processes, and Markdown syntax
-
-## Quick Start
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm start
-```
 
 ## Usage
 
@@ -71,6 +111,10 @@ npm start
 - Native CSS styling
 - localStorage persistence
 
-## License
+## Attribution & License
 
-MIT
+**Original Project:** [Lyra's Exporter](https://github.com/Yalums/lyra-exporter) by [Yalums](https://github.com/Yalums)  
+**English Translation:** [bdmorin](https://github.com/bdmorin)  
+**License:** MIT
+
+This English fork maintains the same MIT license as the original project. All core functionality and design credit belongs to Yalums.
