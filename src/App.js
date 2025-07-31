@@ -11,7 +11,6 @@ import ConversationGrid from './components/ConversationGrid';
 import ConversationTimeline from './components/ConversationTimeline';
 import ConversationFilter from './components/ConversationFilter';
 import ThemeSwitcher from './components/ThemeSwitcher';
-import Toast from './components/Toast';
 
 // 自定义Hooks导入
 import { useFileManager } from './hooks/useFileManager';
@@ -51,9 +50,7 @@ function App() {
   const [showMessageDetail, setShowMessageDetail] = useState(false);
   const [operatedFiles, setOperatedFiles] = useState(new Set());
   const [scrollPositions, setScrollPositions] = useState({});
-  // Toast 状态
-  const [toasts, setToasts] = useState([]);
-  // 新增 error 状态
+  // Error state
   const [error, setError] = useState(null);
   const [exportOptions, setExportOptions] = useState({
     scope: 'current', // 'current' | 'operated' | 'all'
@@ -68,22 +65,6 @@ function App() {
   
   const fileInputRef = useRef(null);
   const contentAreaRef = useRef(null);
-
-  // Toast 管理函数
-  const showToast = useCallback((message, type = 'info', duration = 3000) => {
-    const id = Date.now() + Math.random();
-    const newToast = { id, message, type, duration };
-    setToasts(prev => [...prev, newToast]);
-    
-    // 自动清理
-    setTimeout(() => {
-      setToasts(prev => prev.filter(toast => toast.id !== id));
-    }, duration + 300); // 加上动画时间
-  }, []);
-
-  const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  }, []);
 
   // 使用统一的UUID管理 - 传入files参数
   const currentFileUuid = useFileUuid(viewMode, selectedFileIndex, selectedConversationUuid, processedData, files);
@@ -547,16 +528,16 @@ function App() {
         console.log('[Lyra Exporter] 成功加载来自 Lyra Fetch 的数据:', filename);
         
         // 显示成功提示
-        showToast(`成功加载来自 Lyra Fetch 的数据: ${filename}`, 'success', 4000);
+        console.log(`Successfully loaded data from Lyra Fetch: ${filename}`);
         setError(null);
         
       } catch (error) {
-        console.error('[Lyra Exporter] 处理 Lyra Fetch 数据时出错:', error);
-        showToast('加载数据失败: ' + error.message, 'error', 5000);
-        setError('加载数据失败: ' + error.message);
+        console.error('[Lyra Exporter] Error processing Lyra Fetch data:', error);
+        console.error('Failed to load data: ' + error.message);
+        setError('Failed to load data: ' + error.message);
       }
     }
-  }, [fileActions, showToast]);
+  }, [fileActions]);
 
   // postMessage 监听器 - 依赖稳定的处理函数
   useEffect(() => {
@@ -1195,17 +1176,6 @@ function App() {
             </div>
           )}
           <ThemeSwitcher />
-
-          {/* Toast 提示 */}
-          {toasts.map(toast => (
-            <Toast
-              key={toast.id}
-              message={toast.message}
-              type={toast.type}
-              duration={toast.duration}
-              onClose={() => removeToast(toast.id)}
-            />
-          ))}
 
           {/* 导出面板 */}
           {showExportPanel && (

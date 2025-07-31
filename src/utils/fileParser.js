@@ -1,9 +1,9 @@
 // utils/fileParser.js
-// 文件解析相关功能 - 更新版，支持新的Gemini/NotebookLM格式
+// File parsing functionality - Updated version with support for new Gemini/NotebookLM formats
 
-// 解析时间戳
+// Parse timestamp
 export const parseTimestamp = (timestampStr) => {
-  if (!timestampStr) return "未知时间";
+  if (!timestampStr) return "Unknown time";
   
   try {
     // 处理带时区的时间戳
@@ -23,12 +23,12 @@ export const parseTimestamp = (timestampStr) => {
       second: '2-digit'
     });
   } catch (error) {
-    console.error("解析时间戳错误:", error);
-    return "未知时间";
+    console.error("Timestamp parsing error:", error);
+    return "Unknown time";
   }
 };
 
-// 新增：格式化文件大小的辅助函数
+// New: Helper function for formatting file size
 const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -37,16 +37,16 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-// 检测JSON文件格式
+// Detect JSON file format
 export const detectFileFormat = (jsonData) => {
-  // 新的Gemini/NotebookLM格式 - 包含title, platform, exportedAt, conversation字段的对象
+  // New Gemini/NotebookLM format - object containing title, platform, exportedAt, conversation fields
   if (typeof jsonData === 'object' && jsonData !== null && 
       jsonData.title && jsonData.platform && jsonData.exportedAt && 
       jsonData.conversation && Array.isArray(jsonData.conversation)) {
     return 'gemini_notebooklm';
   }
   
-  // Claude全部对话格式 - 数组包含对话摘要
+  // Claude all conversations format - array containing conversation summaries
   if (Array.isArray(jsonData) && jsonData.length > 0) {
     const firstItem = jsonData[0];
     if (firstItem && typeof firstItem === 'object' && 
@@ -84,18 +84,18 @@ export const extractChatData = (jsonData, fileName = '') => {
     case 'claude_full_export':
       return extractClaudeFullExportData(jsonData, fileName);
     default:
-      throw new Error(`不支持的文件格式: ${format}`);
+      throw new Error(`Unsupported file format: ${format}`);
   }
 };
 
-// 解析新版Gemini/NotebookLM格式 (支持title等元数据和Base64图片)
+// Parse new Gemini/NotebookLM format (supports title metadata and Base64 images)
 const extractGeminiNotebookLMData = (jsonData, fileName) => {
-  // 从JSON中提取元数据
-  const title = jsonData.title || 'AI对话记录';
+  // Extract metadata from JSON
+  const title = jsonData.title || 'AI Conversation Record';
   const platform = jsonData.platform || 'AI';
-  const exportedAt = jsonData.exportedAt ? parseTimestamp(jsonData.exportedAt) : new Date().toLocaleString('zh-CN');
+  const exportedAt = jsonData.exportedAt ? parseTimestamp(jsonData.exportedAt) : new Date().toLocaleString('en-US');
   
-  // 确定平台显示名称
+  // Determine platform display name
   const platformName = platform === 'gemini' ? 'Gemini' : 
                       platform === 'notebooklm' ? 'NotebookLM' :
                       platform === 'aistudio' ? 'Google AI Studio' : // 新增对AI Studio的支持
@@ -291,7 +291,7 @@ const extractGeminiNotebookLMData = (jsonData, fileName) => {
 // 从Claude JSON数据中提取对话内容（修改以支持模型信息和图片提取）
 const extractClaudeData = (jsonData) => {
   // 提取元数据
-  const title = jsonData.name || "无标题对话";
+  const title = jsonData.name || "Untitled Conversation";
   const createdAt = parseTimestamp(jsonData.created_at);
   const updatedAt = parseTimestamp(jsonData.updated_at);
   const model = jsonData.model || ""; // 提取模型信息
@@ -997,12 +997,12 @@ const extractClaudeConversationsData = (jsonData, fileName) => {
   // 创建一个摘要视图
   const now = new Date();
   const metaInfo = {
-    title: `Claude对话列表 (${conversations.length}个对话)`,
+    title: `Claude Conversation List (${conversations.length} conversations)`,
     created_at: now.toLocaleString('zh-CN'),
     updated_at: now.toLocaleString('zh-CN'),
     project_uuid: "",
     uuid: `claude_conversations_${Date.now()}`,
-    model: "Claude对话列表", // 添加模型信息
+    model: "Claude Conversation List", // Add model information
     platform: 'claude_conversations'
   };
 
@@ -1011,11 +1011,11 @@ const extractClaudeConversationsData = (jsonData, fileName) => {
 
   // 每个对话显示为一个消息块
   conversations.forEach((conversation, idx) => {
-    const convTitle = conversation.name || "无标题对话";
+    const convTitle = conversation.name || "Untitled Conversation";
     const createdAt = parseTimestamp(conversation.created_at);
     const updatedAt = parseTimestamp(conversation.updated_at);
     const model = conversation.model || "未知模型";
-    const projectName = conversation.project?.name || "无项目";
+    const projectName = conversation.project?.name || "No Project";
     const uuid = conversation.uuid || "";
     const summary = conversation.summary || "无摘要";
     const isStarred = conversation.is_starred ? "⭐ 已收藏" : "";
@@ -1026,7 +1026,7 @@ const extractClaudeConversationsData = (jsonData, fileName) => {
       uuid: `conv_${idx}`,
       parent_uuid: idx > 0 ? `conv_${idx - 1}` : "",
       sender: "system",
-      sender_label: "Claude对话",
+      sender_label: "Claude Conversation",
       timestamp: createdAt,
       content_items: [],
       raw_text: `### ${convTitle} ${isStarred}\n\n**UUID**: ${uuid}\n**模型**: ${model}\n**项目**: ${projectName}\n**创建时间**: ${createdAt}\n**更新时间**: ${updatedAt}\n\n**摘要**: ${summary || '暂无摘要'}`,
@@ -1092,7 +1092,7 @@ const extractClaudeFullExportData = (jsonData, fileName) => {
   
   // 创建元信息, 新增图片相关
   const metaInfo = {
-    title: `Claude完整导出 (${totalConversations}个对话)`,
+    title: `Claude Full Export (${totalConversations} conversations)`,
     created_at: exportedAt,
     updated_at: exportedAt,
     project_uuid: "",
@@ -1113,9 +1113,9 @@ const extractClaudeFullExportData = (jsonData, fileName) => {
 
   conversations.forEach((conversation, convIdx) => {
     const convUuid = conversation.uuid;
-    const convName = conversation.name || `对话 ${convIdx + 1}`;
+    const convName = conversation.name || `Conversation ${convIdx + 1}`;
     const projectUuid = conversation.project_uuid || 'no_project';
-    const projectName = conversation.project?.name || '无项目';
+    const projectName = conversation.project?.name || 'No Project';
     
     // 累加图片总数
     if(conversation._debug_info && conversation._debug_info.images_processed) {
@@ -1154,7 +1154,7 @@ const extractClaudeFullExportData = (jsonData, fileName) => {
       uuid: `conv_header_${convIdx}`,
       parent_uuid: globalMessageIndex > 1 ? allMessages[allMessages.length - 1].uuid : "",
       sender: "system",
-      sender_label: "对话开始",
+      sender_label: "Conversation Start",
       timestamp: parseTimestamp(conversation.created_at),
       content_items: [],
       raw_text: `### ${convName} ${conversation.is_starred ? '⭐' : ''}\n\n**模型**: ${conversation.model || '未知'}\n**项目**: ${projectName}\n**创建时间**: ${parseTimestamp(conversation.created_at)}`,

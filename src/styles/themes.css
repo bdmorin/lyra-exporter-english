@@ -1,8 +1,8 @@
-/* themes.css - Claude.ai 风格主题系统 */
+/* themes.css - Claude.ai Style Theme System */
 
-/* =================== CSS 变量定义 =================== */
+/* =================== CSS Variable Definitions =================== */
 :root {
-  /* 深色主题（默认）- Claude.ai 风格 */
+  /* Dark theme (default) - Claude.ai style */
   --bg-primary: #262624;
   --bg-secondary: #2a2a2a;
   --bg-tertiary: #3a3a3a;
@@ -17,7 +17,7 @@
   --text-tertiary: #9ca3af;
   --text-link: #f59e0b;
   
-  /* Claude.ai 温暖橙色系 */
+  /* Claude.ai warm orange palette */
   --accent-primary: #d97706;      /* 主要橙色 - terra cotta */
   --accent-secondary: #C2C0B6;    /* 人类头像背景色 */
   --accent-danger: #dc2626;       /* 红色（危险） */

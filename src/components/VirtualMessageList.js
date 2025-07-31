@@ -141,7 +141,7 @@ const VirtualMessageList = ({
   }, [searchResults]);
 
   const getPreviewText = useCallback((message, maxLength = 80) => {
-    if (!message.display_text) return '无内容';
+    if (!message.display_text) return 'No content';
     
     let preview = message.display_text.replace(/\n/g, ' ').trim();
     if (preview.length > maxLength) {
@@ -207,7 +207,7 @@ const VirtualMessageList = ({
   if (!messages || messages.length === 0) {
     return (
       <div className="message-list-empty">
-        <p className="placeholder">没有消息可显示</p>
+        <p className="placeholder">No messages to display</p>
       </div>
     );
   }

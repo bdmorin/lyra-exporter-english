@@ -1,11 +1,11 @@
 {
-  "name": "lyra-exporter",
+  "name": "lyra-exporter-english",
   "version": "1.2.0",
   "private": true,
-  "homepage": "https://yalums.github.io/lyra-exporter",
-  "description": "A handy tool for exporting chat conversations.",
+  "homepage": "https://bdmorin.github.io/lyra-exporter-english",
+  "description": "A handy tool for exporting chat conversations (English version).",
   "author": {
-    "name": "Yalums"
+    "name": "bdmorin"
   },
   "dependencies": {
     "file-saver": "^2.0.5",

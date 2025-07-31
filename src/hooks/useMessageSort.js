@@ -1,5 +1,5 @@
 // hooks/useMessageSort.js
-// 消息排序Hook - 修复版本
+// Message sorting hook - Fixed version
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 

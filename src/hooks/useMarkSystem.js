@@ -1,7 +1,7 @@
 // hooks/useMarkSystem.js
 import { useState, useEffect, useCallback } from 'react';
 
-// 标记类型常量
+// Mark type constants
 const MARK_TYPES = {
   COMPLETED: 'completed',
   IMPORTANT: 'important',

@@ -1,75 +1,75 @@
 # Lyra's Exporter
 
-一个用于获取、管理和导出Claude、Gemini、NotebookLM对话记录的工具，功能是目前最全的。
+A comprehensive tool for retrieving, managing, and exporting conversation records from Claude, Gemini, NotebookLM, and other AI platforms.
 
-## 功能特性
+## Features
 
-- 📁 **文件管理**: 加载多个Claude、Gemini、NotebookLM、Google AI Studio平台的对话JSON文件
-- 🔍 **智能查找**: 搜索消息内容，查找有图片附件、思考过程和创建了 Artifacts 的对话
-- 🏷️ **标记系统**: 标记消息为完成、重要或删除，并在导出时保留特定格式
-- 📤 **灵活导出**: 导出为Markdown格式，支持批量导出
-- 🌳 **分支检测**: 自动检测和显示对话分支
-- ✉️  **全功能读取**: 智能识别图片附件、思考过程、Markdown 语法
+- 📁 **File Management**: Load multiple conversation JSON files from Claude, Gemini, NotebookLM, and Google AI Studio platforms
+- 🔍 **Smart Search**: Search message content, find conversations with image attachments, thinking processes, and created Artifacts
+- 🏷️ **Marking System**: Mark messages as completed, important, or deleted, with format preservation during export
+- 📤 **Flexible Export**: Export to Markdown format with batch export support
+- 🌳 **Branch Detection**: Automatically detect and display conversation branches
+- ✉️  **Full-Featured Reading**: Intelligently recognize image attachments, thinking processes, and Markdown syntax
 
-## 快速开始
+## Quick Start
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 启动开发服务器
+# Start development server
 npm start
 ```
 
-## 使用方法
+## Usage
 
-1. 点击"加载文件"按钮，选择Claude等平台导出的JSON文件
-2. 在左侧查看文件列表和消息列表
-3. 点击消息查看详情（内容、思考过程、Artifacts）
-4. 使用搜索功能快速定位消息
-5. 标记重要消息或已完成的消息
-6. 导出所需的对话内容
+1. Click the "Load Files" button and select JSON files exported from Claude and other platforms
+2. View file list and message list on the left side
+3. Click messages to view details (content, thinking process, Artifacts)
+4. Use search functionality to quickly locate messages
+5. Mark important or completed messages
+6. Export desired conversation content
 
-## 开发指南
+## Development Guide
 
-### 1. 文件格式支持
+### 1. Supported File Formats
 
-- **Claude 单个对话** (`claude`) - 包含单个对话的所有消息
-- **Claude 对话列表** (`claude_conversations`) - 仅包含对话摘要的列表
-- **Claude 完整导出** (`claude_full_export`) - 包含多个完整对话的导出文件
-- **Gemini/NotebookLM ** (`gemini_notebooklm`) - 支持 Gemini、NotebookLM 以及 Google AI Studio 的对话格式
+- **Claude Single Conversation** (`claude`) - Contains all messages from a single conversation
+- **Claude Conversation List** (`claude_conversations`) - Contains only conversation summaries
+- **Claude Full Export** (`claude_full_export`) - Contains multiple complete conversations in export file
+- **Gemini/NotebookLM** (`gemini_notebooklm`) - Supports conversation formats from Gemini, NotebookLM, and Google AI Studio
 
-### 2. 主要功能模块
+### 2. Main Feature Modules
 
-#### 消息管理
+#### Message Management
 
-- **搜索功能**: 筛选模式，只显示匹配的消息
-- **标记系统**: 支持标记消息为已完成(✓)、重要(⭐)或删除(🗑️)
-- **自定义排序**: 支持手动调整消息顺序，通过上下移动按钮实现
-- **对话折叠**: 可以折叠/展开对话，方便浏览长对话列表
-- **虚拟滚动**: 消息超过100条时自动启用，提升性能
+- **Search Functionality**: Filter mode that displays only matching messages
+- **Marking System**: Support for marking messages as completed (✓), important (⭐), or deleted (🗑️)
+- **Custom Sorting**: Manual message order adjustment using up/down move buttons
+- **Conversation Folding**: Collapse/expand conversations for easier browsing of long conversation lists
+- **Virtual Scrolling**: Automatically enabled when messages exceed 100 items for improved performance
 
-#### 视图模式（仅限完整导出格式）
+#### View Modes (Full Export Format Only)
 
-- **全部消息**: 显示所有对话的所有消息
-- **按对话查看**: 选择特定对话查看其消息
-- **按项目查看**: 选择特定项目查看相关对话和消息
-- **桌面端**: 左侧面板显示对话/项目选择器
-- **移动端**: 与桌面端相同的视图选择体验
+- **All Messages**: Display all messages from all conversations
+- **By Conversation**: Select specific conversations to view their messages
+- **By Project**: Select specific projects to view related conversations and messages
+- **Desktop**: Left panel displays conversation/project selector
+- **Mobile**: Same view selection experience as desktop
 
-#### 导出功能
+#### Export Features
 
-- 导出为 Markdown 格式
-- 支持按标记筛选导出
-- 保留原始格式和结构
-- 支持自定义排序后的顺序导出
+- Export to Markdown format
+- Support filtering export by marks
+- Preserve original format and structure
+- Support export in custom sorted order
 
-## 技术栈
+## Tech Stack
 
 - React 18
-- 自定义Hooks进行状态管理
-- 原生CSS样式
-- localStorage持久化
+- Custom Hooks for state management
+- Native CSS styling
+- localStorage persistence
 
 ## License
 

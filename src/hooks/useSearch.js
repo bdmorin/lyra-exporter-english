@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
-// 搜索防抖延迟
+// Search debounce delay
 const SEARCH_DEBOUNCE_MS = 300;
 
 export const useSearch = (messages = []) => {
