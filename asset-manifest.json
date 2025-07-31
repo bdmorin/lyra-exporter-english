@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/lyra-exporter-english/static/css/main.479c6884.css",
+    "main.js": "/lyra-exporter-english/static/js/main.f930aeaa.js",
+    "static/js/22.976cc530.chunk.js": "/lyra-exporter-english/static/js/22.976cc530.chunk.js",
+    "index.html": "/lyra-exporter-english/index.html",
+    "main.479c6884.css.map": "/lyra-exporter-english/static/css/main.479c6884.css.map",
+    "main.f930aeaa.js.map": "/lyra-exporter-english/static/js/main.f930aeaa.js.map",
+    "22.976cc530.chunk.js.map": "/lyra-exporter-english/static/js/22.976cc530.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.479c6884.css",
+    "static/js/main.f930aeaa.js"
+  ]
+}
